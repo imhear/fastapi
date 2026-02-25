@@ -27,7 +27,7 @@ Post-History:2026-02-24
 ### 在IDE中，为项目配置新python解释器
 PyCharm - Settings - fastapi - Python Interpreter - Add Interpreter - Add Local Interpreter - 解释器选择：/Users/wutao/code/fastapi/.venv/Scripts/python.exe - Apply - OK
 
-## 第2步：Python虚拟环境中使用阿里源配置Poetry并安装依赖
+## 第2步：Python虚拟环境中使用uv安装依赖
 ### python虚拟环境中
 ```python虚拟环境中
 (.venv) wutaodeMacBook-Pro:fastapi wutao$ uv sync
