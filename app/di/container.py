@@ -1,12 +1,11 @@
 # app/di/container.py
 from dependency_injector import containers, providers
-
-from app.composers.user_detail import UserDetailComposer
 from app.core.config import settings
 from app.core.database import engine, AsyncSessionFactory, get_async_db
 from app.core.redis import get_redis_client
 from app.di.modules.user_container import UserContainer
 from app.di.modules.role_container import RoleContainer
+from app.composers.user_detail import UserDetailComposer
 
 
 class Container(containers.DeclarativeContainer):
@@ -30,6 +29,9 @@ class Container(containers.DeclarativeContainer):
 
     # Redis 客户端资源
     redis_client = providers.Resource(get_redis_client)
+
+    # 【核心修复】Redis客户端改为Singleton（单例），而非Resource
+    # redis_client = providers.Singleton(get_redis_client)
 
     # 子容器：用户模块
     user_container = providers.Container(
