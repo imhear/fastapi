@@ -3,9 +3,10 @@ from app.modules.user.repository import UserRepository
 from app.modules.user.schemas import UserCreate, UserUpdate, UserResponse, UserProfileResponse
 from app.services.redis_service import RedisService
 from app.core.exceptions import ResourceNotFound, BadRequest
+from app.domain.user.interfaces import AbstractUserService
 
 
-class UserService:
+class UserService(AbstractUserService):  # 实现抽象接口
     def __init__(self, user_repository: UserRepository, redis_client):
         self.user_repository = user_repository
         self.redis_service = RedisService(redis_client)

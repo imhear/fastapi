@@ -1,11 +1,12 @@
+# app/modules/role/service.py
 from typing import List
 from app.modules.role.repository import RoleRepository
 from app.modules.role.schemas import RoleCreate, RoleUpdate, RoleResponse
 from app.services.redis_service import RedisService
 from app.core.exceptions import ResourceNotFound, BadRequest
+from app.domain.role.interfaces import AbstractRoleService
 
-
-class RoleService:
+class RoleService(AbstractRoleService):  # 实现抽象接口
     def __init__(self, role_repository: RoleRepository, redis_client):
         self.role_repository = role_repository
         self.redis_service = RedisService(redis_client)
