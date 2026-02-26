@@ -150,4 +150,52 @@ git push origin --delete <branch-name>
 4. 准备发布：`git checkout stable && git merge develop && git push origin stable`
 5. 打标签：`git tag v1.1.0 && git push origin v1.1.0`
 
+<<<<<<< HEAD
 这套流程将帮助你清晰管理三个分支，既保持与上游同步，又能独立发布自己的稳定版本。
+=======
+这套流程将帮助你清晰管理三个分支，既保持与上游同步，又能独立发布自己的稳定版本。
+
+---
+
+## 工作流的改善方案（优化后完整流程）
+# ========== 阶段1：同步上游（优化点：增加本地分支检查） ==========
+git checkout master
+git fetch upstream  # 先拉取上游最新，不直接合并
+git pull upstream master  # 合并上游master到本地master
+git push origin master    # 推送到自己的远程master
+
+# ========== 阶段2：更新开发分支（核心优化：多人用merge，单人可选rebase） ==========
+git checkout develop
+git pull origin develop   # 先拉取远程develop最新（避免覆盖他人提交）
+# 【关键】若develop是多人协作：用merge替代rebase，避免重写历史
+git merge master          # 而非 rebase master
+# 若仅单人开发，非要用rebase：先确认没有未推送的本地提交，再执行
+# git rebase master
+git push origin develop   # 多人协作时，去掉 --force-with-lease！
+
+# ========== 阶段3：日常开发（新增：提交前验证） ==========
+# 开发完成后，先本地验证（比如运行测试、编译）
+pytest  # 假设是Python项目，运行单元测试
+# 提交并推送
+git add .
+git commit -m "feat: 新增xxx功能"
+git push origin develop
+
+# ========== 阶段4：准备发布（核心优化：合并前拉取+合并后验证） ==========
+git checkout stable
+git pull origin stable    # 先拉取远程stable最新，避免本地过时
+git merge develop         # 合并develop到stable
+# 合并后必须本地验证（关键！）
+pytest  # 运行测试，确保合并后代码无bug
+# 验证通过后再提交+推送
+git commit  # 完成合并提交（解决编辑器问题）
+git push origin stable
+
+# ========== 阶段5：打标签（优化点：标签备注+验证推送） ==========
+# 打带备注的标签（更易追溯），而非轻量标签
+git tag -a v1.1.0 -m "版本v1.1.0：新增xxx功能，修复xxx问题"
+git push origin v1.1.0    # 推送标签到远程
+# 验证标签是否推送成功
+git fetch origin --tags
+git tag -l | grep v1.1.0  # 确认标签存在
+>>>>>>> develop
