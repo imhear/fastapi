@@ -1,3 +1,4 @@
+# app/utils/permission_checker.py"
 import logging
 from typing import Callable, Awaitable
 from fastapi import Depends, HTTPException, status

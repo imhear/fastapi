@@ -18,6 +18,13 @@ class UserService(AbstractUserService):  # 实现抽象接口
                 raise ResourceNotFound("User not found")
             return user
 
+    async def get_user_by_username(self, username: str):
+        async with self.user_repository.transaction() as session:
+            user = await self.user_repository.get_by_username(username, session=session)
+            if not user:
+                raise ResourceNotFound("User not found")
+            return user
+
     async def get_user_profile(self, user_id: str) -> UserProfileResponse:
         user = await self.get_user_by_id(user_id)
         # 此处可通过其他服务获取角色名称，为简化暂留空

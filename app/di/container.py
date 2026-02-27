@@ -6,7 +6,10 @@ from app.core.redis import get_redis_client
 from app.di.modules.user_container import UserContainer
 from app.di.modules.role_container import RoleContainer
 from app.di.modules.permission_container import PermissionContainer
+from app.di.modules.auth_container import AuthContainer
 from app.composers.user_detail import UserDetailComposer
+from app.services.captcha_service import CaptchaService
+from app.services.redis_service import RedisService
 
 
 class Container(containers.DeclarativeContainer):
@@ -17,6 +20,7 @@ class Container(containers.DeclarativeContainer):
             "app.composers.user_detail",
             "app.utils.permission_checker",  # 新增，使 permission_checker 可被注入
             "app.core.auth",   # 新增
+            "app.modules.auth.api",   # 新增
         ]
     )
 
@@ -33,14 +37,23 @@ class Container(containers.DeclarativeContainer):
     # Redis 客户端资源
     redis_client = providers.Resource(get_redis_client)
 
-    # 【核心修复】Redis客户端改为Singleton（单例），而非Resource
-    # redis_client = providers.Singleton(get_redis_client)
+    # Redis 服务（具体实现）
+    redis_service = providers.Factory(
+        RedisService,
+        redis_client=redis_client,
+    )
 
     # 子容器：用户模块
     user_container = providers.Container(
         UserContainer,
         async_session_factory=async_session_factory,
         redis_client=redis_client,
+    )
+
+    # 验证码服务
+    captcha_service = providers.Factory(
+        CaptchaService,
+        redis_service=redis_service,
     )
 
     # 子容器：角色模块
@@ -54,6 +67,13 @@ class Container(containers.DeclarativeContainer):
     permission_container = providers.Container(
         PermissionContainer,
         async_session_factory=async_session_factory,
+    )
+
+    # 认证子容器
+    auth_container = providers.Container(
+        AuthContainer,
+        user_service=user_container.user_service,      # 注入 UserService
+        redis_service=redis_service,                   # 注入 RedisService
     )
 
     # 聚合层 composer - 使用子容器的提供者属性，而不是 .provided
