@@ -1,3 +1,4 @@
+# app/modules/role/repository.py
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional, List
 from sqlalchemy import select, delete, insert

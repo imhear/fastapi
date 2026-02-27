@@ -19,6 +19,7 @@ class SysPermission(Base):
     description = Column(String(255))                            # 描述
     category = Column(String(64), default='general')            # 分类
     is_active = Column(Boolean, default=True)                    # 是否激活
+    status = Column(SmallInteger, default=1)
     is_deleted = Column(SmallInteger, default=0)
 
     roles = relationship('SysRole', secondary='sys_role_permission', back_populates='permissions')

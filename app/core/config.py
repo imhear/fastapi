@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     # 密码加密
     BCRYPT_ROUNDS: int = 12
+    # 30 minutes
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     PROJECT_NAME: str = "FastAPI Project"
     ENVIRONMENT: str = Field("local", env="ENVIRONMENT")
@@ -42,6 +44,8 @@ class Settings(BaseSettings):
     REDIS_USE_POOL: bool = Field(True, env="REDIS_USE_POOL")
     REDIS_SOCKET_TIMEOUT: int = Field(5, env="REDIS_SOCKET_TIMEOUT")
     REDIS_SOCKET_CONNECT_TIMEOUT: int = Field(5, env="REDIS_SOCKET_CONNECT_TIMEOUT")
+    REDIS_KEY_PREFIX: str = Field("app:", env="REDIS_KEY_PREFIX")
+    REDIS_USE_POOL: bool = Field(True, env="REDIS_USE_POOL")
 
     @computed_field
     @property

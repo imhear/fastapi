@@ -1,3 +1,4 @@
+# app/models/base.py
 import uuid
 from sqlalchemy import Column, func
 from sqlalchemy.dialects.postgresql import UUID
