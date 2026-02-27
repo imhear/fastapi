@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.models.base import Base, uuid_pk_column
 
+# 角色-权限关联表
 sys_role_permission = Table(
     'sys_role_permission',
     Base.metadata,
@@ -21,3 +22,4 @@ class SysRole(Base):
     is_deleted = Column(SmallInteger, default=0)
 
     users = relationship('SysUser', secondary='sys_user_role', back_populates='roles')
+    permissions = relationship('SysPermission', secondary='sys_role_permission', back_populates='roles')
