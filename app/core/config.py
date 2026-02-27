@@ -1,5 +1,7 @@
 # app/core/config.py
 import os
+import secrets
+
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -10,6 +12,11 @@ class Settings(BaseSettings):
         env_ignore_empty=True,
         extra="ignore",
     )
+    API_V1_STR: str = "/api/v1"
+    SECRET_KEY: str = secrets.token_urlsafe(32)
+    ALGORITHM: str = "HS256"
+    # 密码加密
+    BCRYPT_ROUNDS: int = 12
 
     PROJECT_NAME: str = "FastAPI Project"
     ENVIRONMENT: str = Field("local", env="ENVIRONMENT")

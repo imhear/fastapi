@@ -5,6 +5,7 @@ from app.core.database import engine, AsyncSessionFactory, get_async_db
 from app.core.redis import get_redis_client
 from app.di.modules.user_container import UserContainer
 from app.di.modules.role_container import RoleContainer
+from app.di.modules.permission_container import PermissionContainer
 from app.composers.user_detail import UserDetailComposer
 
 
@@ -14,6 +15,8 @@ class Container(containers.DeclarativeContainer):
             "app.modules.user.api",
             "app.modules.role.api",
             "app.composers.user_detail",
+            "app.utils.permission_checker",  # 新增，使 permission_checker 可被注入
+            "app.core.auth",   # 新增
         ]
     )
 
@@ -45,6 +48,12 @@ class Container(containers.DeclarativeContainer):
         RoleContainer,
         async_session_factory=async_session_factory,
         redis_client=redis_client,
+    )
+
+    # 子容器：权限模块
+    permission_container = providers.Container(
+        PermissionContainer,
+        async_session_factory=async_session_factory,
     )
 
     # 聚合层 composer - 使用子容器的提供者属性，而不是 .provided

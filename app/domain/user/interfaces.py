@@ -1,13 +1,14 @@
 # app/domain/user/interfaces.py
 from abc import ABC, abstractmethod
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional
+
 from app.modules.user.models import SysUser
 from app.modules.user.schemas import UserCreate, UserUpdate
 
 class AbstractUserService(ABC):
     @abstractmethod
-    async def get_user_by_id(self, user_id: str) -> SysUser:
-        """获取用户实体（内部使用）"""
+    async def get_user_by_id(self, user_id: str) -> Optional[SysUser]:
+        """根据 ID 获取用户 ORM 对象，若不存在返回 None"""
         pass
 
     @abstractmethod

@@ -19,6 +19,8 @@ class SysUser(Base):
     nickname = Column(String(64))
     password = Column(String(100), nullable=False)
     email = Column(String(128))
-    is_deleted = Column(SmallInteger, default=0)
+    is_deleted = Column(SmallInteger, default=0, comment='逻辑删除标识(0-未删除 1-已删除)')
+    status = Column(SmallInteger, default=1, comment='状态(1-正常 0-禁用)')
+    is_superuser = Column(SmallInteger, default=0, comment='超级用户(1-是 0-否)')
 
     roles = relationship('SysRole', secondary='sys_user_role', back_populates='users')
