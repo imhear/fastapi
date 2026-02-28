@@ -49,17 +49,23 @@ class UserRepository:
         await session.refresh(user)
         return user
 
-    async def update(self, user_id: str, user_update: UserUpdate, session: AsyncSession) -> Optional[SysUser]:
-        user = await self.get_by_id(user_id, session=session)
-        if not user:
-            return None
-        update_data = user_update.model_dump(exclude_unset=True)
-        for key, value in update_data.items():
-            setattr(user, key, value)
-        session.add(user)
+    async def update(self, user_id: str, user_update: SysUser, session: AsyncSession) -> Optional[SysUser]:
+        print(f"🎯 repository.update_user: 开始1")
+        # user = await self.get_by_id(user_id, session=session)
+        print(f"🎯 repository.update_user: 开始2")
+        # if not user:
+        #     return None
+        print(f"🎯 repository.update_user: 开始提取更新数据")
+        # update_data = user_update.model_dump(exclude_unset=True)
+        print(f"🎯 repository.update_user: 结束提取更新数据")
+        # update_data = user_update.model_dump(exclude_unset=True)
+        # for key, value in update_data.items():
+        #     setattr(user, key, value)
+        # session.add(user)
+        session.add(user_update)
         await session.flush()
-        await session.refresh(user)
-        return user
+        await session.refresh(user_update)
+        return user_update
 
     async def delete(self, user_id: str, session: AsyncSession) -> bool:
         user = await self.get_by_id(user_id, session=session)
