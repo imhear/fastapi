@@ -1,6 +1,7 @@
 # app/modules/user/service.py
 from typing import Dict, Any
 
+from app.modules.user.models import SysUser
 from app.modules.user.repository import UserRepository
 from app.modules.user.schemas import UserCreate, UserUpdate, UserResponse, UserProfileResponse
 from app.services.redis_service import RedisService
@@ -47,8 +48,50 @@ class UserService(AbstractUserService):  # 实现抽象接口
             user = await self.user_repository.create(user_in, session=session)
             return UserResponse.model_validate(user)
 
+    async def update_user(self, user_id: str, user_update: UserUpdate, current_version: int, current_user_id: str) -> UserResponse:
+        print(f"🎯 service.update_user: 开始，操作人ID: {current_user_id}")
+        async with self.user_repository.transaction() as session:
+            user = await self.get_user_by_id(user_id)
+            if not user:
+                raise ResourceNotFound("User not found")
 
-    async def update_user(self, user_id: str, user_update: UserUpdate, current_version: int) -> Dict[str, Any]:
+            # 操作人ID检查
+            if current_user_id is None:
+                raise BadRequest("缺少操作人ID")
+
+            # 乐观锁检查
+            if current_version is None:
+                raise BadRequest("缺少乐观锁版本号")
+            # TODO 方便测试，需要解除注释
+            # if user.version != current_version:
+            #     raise BadRequest("数据已被其他用户修改，请刷新后重试")
+
+            # 提取更新数据，排除版本号和关联字段
+            update_data = user_update.model_dump(exclude_unset=True, exclude={'version', 'role_ids'})
+
+            # 只更新模型存在的字段
+            model_columns = {c.name for c in SysUser.__table__.columns}
+            valid_update_data = {k: v for k, v in update_data.items() if k in model_columns}
+
+            for key, value in valid_update_data.items():
+                setattr(user, key, value)
+
+            # 设置更新人ID
+            user.update_by = current_user_id  # 关键赋值
+
+            # 版本号递增（不依赖前端传入的 version）
+            user.version += 1
+
+            # 处理角色关联（如果有）
+            if user_update.role_ids is not None:
+                await self.user_repository.assign_roles(user_id, user_update.role_ids, session)
+
+            # 保存
+            updated = await self.user_repository.update(user, session)
+            return UserResponse.model_validate(updated)
+
+
+    async def update_user1(self, user_id: str, user_update: UserUpdate, current_version: int) -> Dict[str, Any]:
         """
         更新用户信息（返回前端格式）
 
@@ -61,21 +104,25 @@ class UserService(AbstractUserService):  # 实现抽象接口
             前端格式的更新后用户信息
         """
         print(f"🎯 service.update_user: 开始")
-        # 1. 获取用户
-        user = await self.get_user_by_id(user_id)
-        if not user:
-            raise ResourceNotFound("User not found")
-        # 检查版本号
-        if user.version != current_version:
-            raise BadRequest("数据已被其他用户修改，请刷新后重试")
-
-        # 2. 邮箱唯一性验证（如果修改邮箱）
-        # if user_update.email and user_update.email != user.email:
-        #     existing_user = await self.user_repository.get_by_email(email=user_update.email)
-        #     if existing_user:
-        #         raise BadRequest(detail=f"邮箱 '{user_update.email}' 已被使用")
-
         async with self.user_repository.transaction() as session:
+            # 1. 获取用户
+            user = await self.get_user_by_id(user_id)
+            if not user:
+                raise ResourceNotFound("User not found")
+
+            # 必须提供版本号
+            if current_version is None:
+                raise BadRequest("缺少乐观锁版本号")
+            # 检查版本号
+            if user.version != current_version:
+                raise BadRequest("数据已被其他用户修改，请刷新后重试")
+
+            # 2. 邮箱唯一性验证（如果修改邮箱）
+            # if user_update.email and user_update.email != user.email:
+            #     existing_user = await self.user_repository.get_by_email(email=user_update.email)
+            #     if existing_user:
+            #         raise BadRequest(detail=f"邮箱 '{user_update.email}' 已被使用")
+
             # 3. 提取更新数据
             print(f"🎯 service.update_user: 开始提取更新数据")
             update_data = user_update.model_dump(exclude_unset=True)
@@ -100,11 +147,8 @@ class UserService(AbstractUserService):  # 实现抽象接口
             #     )
 
             # 7. 保存更新
-            await self.user_repository.update(user_id=user.id ,user_update=user, session=session)
-
-            # 8. 重新加载完整数据
-            updated_user = await self.get_user_by_id(user_id)
+            updated = await self.user_repository.update(obj=user, session=session)
 
             # 9. 转换为前端格式返回 TODO 待实现格式转换
             # return user_mapper.to_user_detail(updated_user)
-            return updated_user
+            return updated

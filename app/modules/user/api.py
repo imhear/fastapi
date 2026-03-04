@@ -1,6 +1,9 @@
 from typing import Any, Annotated
 
+from app.core.auth import CurrentUser
 from app.core.responses import ApiResponse
+from app.models.base import datetime_encoder
+from app.modules.user.models import SysUser
 from fastapi import APIRouter, Depends, HTTPException
 from dependency_injector.wiring import inject, Provide
 from app.di.container import Container
@@ -54,6 +57,7 @@ async def create_user(
 async def update_user(
         id: str,
         user_update: UserUpdate,
+        current_user: CurrentUser,
         # _superuser: CurrentSuperuser,
         user_service: UserServiceDep,
         # _=Depends(permission_checker(PermissionCode.USER_UPDATE.value))
@@ -64,13 +68,16 @@ async def update_user(
     try:
         print(f"🎯 API端点: 开始更新用户 {id}")
         print(f"📨 请求数据: {user_update.model_dump(exclude_unset=True)}")
-
-        user_info = await user_service.update_user(id, user_update, user_update.version)
-        user_info.create_time = user_info.create_time.isoformat()
-        user_info.update_time = user_info.update_time.isoformat()
-        print(f"🎯 API端点: 开始返回用户 {user_info}")
-        return ApiResponse.success(data=id, msg="用户信息更新成功")
-        # return "用户信息更新成功"
+        updated = await user_service.update_user(
+            user_id=id,
+            user_update=user_update,
+            current_version=user_update.version,
+            current_user_id=current_user.id  # 传递用户ID
+        )
+        # updated = await user_service.update_user(id, user_update, user_update.version)
+        # response_data = UserResponse.model_validate(updated)
+        print(f"🎯 API端点: 开始返回用户 {updated}")
+        return ApiResponse.success(data=updated, msg="用户信息更新成功")
     except ResourceNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
     except BadRequest as e:

@@ -1,5 +1,7 @@
 # app/models/base.py
 import uuid
+from datetime import datetime
+
 from sqlalchemy import Column, func, DateTime, SmallInteger, ForeignKey, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base
@@ -32,3 +34,8 @@ class BaseModel(Base):
 
     # ... 其他字段 ...
     version = Column(Integer, default=1, nullable=False, comment='乐观锁版本号')
+
+def datetime_encoder(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"无法序列化类型：{type(obj)}")

@@ -1,3 +1,6 @@
+from typing import Annotated
+
+from app.modules.user.models import SysUser
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from dependency_injector.wiring import inject, Provide
@@ -43,3 +46,5 @@ async def get_current_user(
     #     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive user")
 
     return user
+
+CurrentUser = Annotated[SysUser, Depends(get_current_user)]
