@@ -1,4 +1,5 @@
 # app/main.py
+from app.core.middleware import RequestIDMiddleware
 from fastapi import FastAPI
 from app.core.config import settings
 from app.di.container import Container
@@ -22,6 +23,20 @@ def create_app() -> FastAPI:
     app.include_router(user_router, prefix="/api/v1")
     app.include_router(role_router, prefix="/api/v1")
     app.include_router(auth_router, prefix="/api/v1")
+
+    # 注册request_id中间件
+    app.add_middleware(RequestIDMiddleware)
+
+    # 日志处理器生命周期管理
+    @app.on_event("startup")
+    async def startup():
+        log_svc = container.log_service()
+        log_svc.processor.start()
+
+    @app.on_event("shutdown")
+    async def shutdown():
+        log_svc = container.log_service()
+        await log_svc.processor.stop()
 
     return app
 

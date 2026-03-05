@@ -11,6 +11,7 @@ from app.di.modules.permission_container import PermissionContainer
 from app.di.modules.auth_container import AuthContainer
 from app.composers.user_detail import UserDetailComposer
 from app.composers.user_update_composer import UserUpdateComposer
+from app.modules.log.service import LogService
 from app.services.captcha_service import CaptchaService
 from app.services.redis_service import RedisService
 
@@ -36,6 +37,9 @@ class Container(containers.DeclarativeContainer):
 
     # 请求级会话资源（由 get_async_db 提供）
     async_db = providers.Resource(get_async_db)
+
+    # 日志服务单例，确保处理器只启动一次
+    log_service = providers.Singleton(LogService)
 
     # Redis 客户端资源
     redis_client = providers.Resource(get_redis_client)

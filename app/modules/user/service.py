@@ -66,8 +66,8 @@ class UserService(AbstractUserService):  # 实现抽象接口
                 if current_version is None:
                     raise BadRequest("缺少乐观锁版本号")
                 # TODO 方便测试，需要解除注释
-                # if user.version != current_version:
-                #     raise BadRequest("数据已被其他用户修改，请刷新后重试")
+                if user.version != current_version:
+                    raise BadRequest("数据已被其他用户修改，请刷新后重试")
 
                 # 提取更新数据，排除版本号和关联字段
                 update_data = user_update.model_dump(exclude_unset=True, exclude={'version', 'role_ids'})
