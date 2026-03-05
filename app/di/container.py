@@ -1,5 +1,7 @@
 # app/di/container.py
 from dependency_injector import containers, providers
+
+
 from app.core.config import settings
 from app.core.database import engine, AsyncSessionFactory, get_async_db
 from app.core.redis import get_redis_client
@@ -8,6 +10,7 @@ from app.di.modules.role_container import RoleContainer
 from app.di.modules.permission_container import PermissionContainer
 from app.di.modules.auth_container import AuthContainer
 from app.composers.user_detail import UserDetailComposer
+from app.composers.user_update_composer import UserUpdateComposer
 from app.services.captcha_service import CaptchaService
 from app.services.redis_service import RedisService
 
@@ -81,4 +84,11 @@ class Container(containers.DeclarativeContainer):
         UserDetailComposer,
         user_service=user_container.user_service,  # 直接引用提供者
         role_service=role_container.role_service,  # 直接引用提供者
+    )
+
+    user_update_composer = providers.Factory(
+        UserUpdateComposer,
+        user_service=user_container.user_service,
+        role_service=role_container.role_service,
+        async_session_factory=async_session_factory,   # 直接从父容器注入
     )

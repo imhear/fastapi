@@ -23,7 +23,8 @@ class BaseSchema(BaseModel):
         from_attributes = True  # 替换原来的orm_mode
         populate_by_name = True
 
-class UserUpdate(BaseSchema):
+class UserUpdate(BaseModel):
+# class UserUpdate(BaseSchema):
     """
     更新用户请求模型 - 支持前端格式
     """

@@ -1,6 +1,8 @@
 # app/modules/user/service.py
 from typing import Dict, Any
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.modules.user.models import SysUser
 from app.modules.user.repository import UserRepository
 from app.modules.user.schemas import UserCreate, UserUpdate, UserResponse, UserProfileResponse
@@ -48,48 +50,55 @@ class UserService(AbstractUserService):  # 实现抽象接口
             user = await self.user_repository.create(user_in, session=session)
             return UserResponse.model_validate(user)
 
-    async def update_user(self, user_id: str, user_update: UserUpdate, current_version: int, current_user_id: str) -> UserResponse:
-        print(f"🎯 service.update_user: 开始，操作人ID: {current_user_id}")
-        async with self.user_repository.transaction() as session:
-            user = await self.get_user_by_id(user_id)
-            if not user:
-                raise ResourceNotFound("User not found")
+    async def update_user(self, user_id: str, user_update: UserUpdate, current_version: int, current_user_id: str, session: AsyncSession | None = None,) -> UserResponse:
+        async def _update(sess):
+            print(f"🎯 service.update_user: 开始，操作人ID: {current_user_id}")
+            async with self.user_repository.transaction() as session:
+                user = await self.get_user_by_id(user_id)
+                if not user:
+                    raise ResourceNotFound("User not found")
 
-            # 操作人ID检查
-            if current_user_id is None:
-                raise BadRequest("缺少操作人ID")
+                # 操作人ID检查
+                if current_user_id is None:
+                    raise BadRequest("缺少操作人ID")
 
-            # 乐观锁检查
-            if current_version is None:
-                raise BadRequest("缺少乐观锁版本号")
-            # TODO 方便测试，需要解除注释
-            # if user.version != current_version:
-            #     raise BadRequest("数据已被其他用户修改，请刷新后重试")
+                # 乐观锁检查
+                if current_version is None:
+                    raise BadRequest("缺少乐观锁版本号")
+                # TODO 方便测试，需要解除注释
+                # if user.version != current_version:
+                #     raise BadRequest("数据已被其他用户修改，请刷新后重试")
 
-            # 提取更新数据，排除版本号和关联字段
-            update_data = user_update.model_dump(exclude_unset=True, exclude={'version', 'role_ids'})
+                # 提取更新数据，排除版本号和关联字段
+                update_data = user_update.model_dump(exclude_unset=True, exclude={'version', 'role_ids'})
 
-            # 只更新模型存在的字段
-            model_columns = {c.name for c in SysUser.__table__.columns}
-            valid_update_data = {k: v for k, v in update_data.items() if k in model_columns}
+                # 只更新模型存在的字段
+                model_columns = {c.name for c in SysUser.__table__.columns}
+                valid_update_data = {k: v for k, v in update_data.items() if k in model_columns}
 
-            for key, value in valid_update_data.items():
-                setattr(user, key, value)
+                for key, value in valid_update_data.items():
+                    setattr(user, key, value)
 
-            # 设置更新人ID
-            user.update_by = current_user_id  # 关键赋值
+                # 设置更新人ID
+                user.update_by = current_user_id  # 关键赋值
 
-            # 版本号递增（不依赖前端传入的 version）
-            user.version += 1
+                # 版本号递增（不依赖前端传入的 version）
+                user.version += 1
 
-            # 处理角色关联（如果有）
-            if user_update.role_ids is not None:
-                await self.user_repository.assign_roles(user_id, user_update.role_ids, session)
+                # 处理角色关联（如果有）不再处理角色逻辑，角色更新完全交给组合器。
+                # if user_update.role_ids is not None:
+                #     await self.user_repository.assign_roles(user_id, user_update.role_ids, session)
 
-            # 保存
-            updated = await self.user_repository.update(user, session)
-            return UserResponse.model_validate(updated)
+                # 保存
+                updated = await self.user_repository.update(user, session)
+                return UserResponse.model_validate(updated)
 
+        # 若传入会话，则用外部会话，否则开启内部事务
+        if session:
+            return await _update(session)
+        else:
+            async with self.user_repository.transaction() as sess:
+                return await _update(sess)
 
     async def update_user1(self, user_id: str, user_update: UserUpdate, current_version: int) -> Dict[str, Any]:
         """

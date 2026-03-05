@@ -21,8 +21,16 @@ class RoleUpdate(BaseModel):
     permission_ids: Optional[List[str]] = None
 
 
-class RoleResponse(RoleBase):
+# class RoleResponse(RoleBase):
+#     id: UUID
+#
+#     class Config:
+#         from_attributes = True
+
+class RoleResponse(BaseModel):
     id: UUID
+    name: str
+    code: str
 
     class Config:
         from_attributes = True

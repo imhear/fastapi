@@ -16,3 +16,5 @@ class AbstractRoleService(ABC):
         pass
 
     # 可根据需要添加其他方法
+    async def get_roles_by_user_id(self, user_id):
+        pass

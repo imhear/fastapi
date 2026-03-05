@@ -18,8 +18,7 @@ class UserDetailComposer:
     async def compose(self, user_id: str) -> dict:
         # 并行获取用户和角色信息
         user = await self.user_service.get_user_by_id(user_id)
-        # 假设 RoleService 有 get_roles_by_user 方法（需自行实现）
-        roles = await self.role_service.list_roles()
+        roles = await self.role_service.get_roles_by_user_id(user_id)
         return {
             "user": UserResponse.model_validate(user),
             "roles": [RoleResponse.model_validate(r) for r in roles],

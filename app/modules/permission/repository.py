@@ -4,8 +4,8 @@ from typing import AsyncGenerator, List, Set, Optional
 from sqlalchemy import select, distinct
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.modules.permission.models import SysPermission
-from app.modules.role.models import SysRole, sys_role_permission
-from app.modules.user.models import SysUser, sys_user_role
+from app.modules.role.models import SysRole, sys_role_permission, SysUserRole as sys_user_role
+from app.modules.user.models import SysUser
 
 
 class PermissionRepository:

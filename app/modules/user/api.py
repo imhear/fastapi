@@ -1,5 +1,8 @@
+# app/modules/user/api.py
+
 from typing import Any, Annotated
 
+from app.composers.user_update_composer import UserUpdateComposer
 from app.core.auth import CurrentUser
 from app.core.responses import ApiResponse
 from app.models.base import datetime_encoder
@@ -44,6 +47,47 @@ async def create_user(
 
 @router.post(
     "/update/{id}",
+    # response_model=ApiResponse[dict],
+    summary="更新用户信息",
+    description="更新用户信息并返回更新后的用户信息"
+)
+# @permission(
+#     code=PermissionCode.USER_UPDATE.value,
+#     name="用户更新权限",
+#     description="需要【user:update】权限"
+# )
+@inject
+async def update_user(
+        id: str,
+        user_update: UserUpdate,
+        current_user: CurrentUser,
+        composer: UserUpdateComposer = Depends(Provide[Container.user_update_composer]),
+) -> Any:
+    """
+    更新用户信息
+    """
+    try:
+        print(f"🎯 API端点: 开始更新用户 {id}")
+        print(f"📨 请求数据: {user_update.model_dump(exclude_unset=True)}")
+        """原子更新用户信息及角色（使用组合器）"""
+        updated = await composer.update_user_with_roles(
+            user_id=id,
+            user_update=user_update,
+            current_version=user_update.version,
+            current_user_id=current_user.id  # 传递用户ID
+        )
+        print(f"🎯 API端点: 开始返回用户 {updated}")
+        return ApiResponse.success(data=updated, msg="用户信息更新成功")
+    except ResourceNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except BadRequest as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"用户信息更新失败: {str(e)}")
+
+
+@router.post(
+    "/updateold/{id}",
     # response_model=ApiResponse[dict],
     summary="更新用户信息",
     description="更新用户信息并返回更新后的用户信息"
