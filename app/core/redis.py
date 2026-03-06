@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+# app/core/redis.py
+>>>>>>> develop
 import redis.asyncio as redis
 from app.core.config import settings
 
@@ -16,4 +20,30 @@ async def get_redis_client() -> redis.Redis:
     try:
         yield client
     finally:
+<<<<<<< HEAD
         await client.close()
+=======
+        await client.close()
+#
+# # app/core/redis.py（完整的Redis客户端创建函数）
+# import redis.asyncio as redis
+# from app.core.config import settings
+#
+# def get_redis_client() -> redis.Redis:
+#     """创建并返回Redis异步客户端（单例）"""
+#     try:
+#         client = redis.Redis(
+#             host="localhost",
+#             port=6379,
+#             db=0,
+#             password="",
+#             encoding="utf-8",
+#             decode_responses=True,
+#             # 连接超时配置
+#             socket_connect_timeout=5,
+#             socket_timeout=5,
+#         )
+#         return client
+#     except Exception as e:
+#         raise RuntimeError(f"Redis客户端初始化失败: {str(e)}") from e
+>>>>>>> develop

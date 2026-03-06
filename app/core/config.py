@@ -1,4 +1,11 @@
+<<<<<<< HEAD
 import os
+=======
+# app/core/config.py
+import os
+import secrets
+
+>>>>>>> develop
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -9,6 +16,16 @@ class Settings(BaseSettings):
         env_ignore_empty=True,
         extra="ignore",
     )
+<<<<<<< HEAD
+=======
+    API_V1_STR: str = "/api/v1"
+    SECRET_KEY: str = secrets.token_urlsafe(32)
+    ALGORITHM: str = "HS256"
+    # 密码加密
+    BCRYPT_ROUNDS: int = 12
+    # 30 minutes
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+>>>>>>> develop
 
     PROJECT_NAME: str = "FastAPI Project"
     ENVIRONMENT: str = Field("local", env="ENVIRONMENT")
@@ -34,6 +51,11 @@ class Settings(BaseSettings):
     REDIS_USE_POOL: bool = Field(True, env="REDIS_USE_POOL")
     REDIS_SOCKET_TIMEOUT: int = Field(5, env="REDIS_SOCKET_TIMEOUT")
     REDIS_SOCKET_CONNECT_TIMEOUT: int = Field(5, env="REDIS_SOCKET_CONNECT_TIMEOUT")
+<<<<<<< HEAD
+=======
+    REDIS_KEY_PREFIX: str = Field("app:", env="REDIS_KEY_PREFIX")
+    REDIS_USE_POOL: bool = Field(True, env="REDIS_USE_POOL")
+>>>>>>> develop
 
     @computed_field
     @property

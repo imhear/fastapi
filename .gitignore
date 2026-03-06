@@ -32,7 +32,12 @@ archive.zip
 .codspeed
 .python-version
 <<<<<<< HEAD
+<<<<<<< HEAD
 .venv
+=======
+.venv
+.env
+>>>>>>> develop
 =======
 .venv
 .env

@@ -151,8 +151,11 @@ git push origin --delete <branch-name>
 5. 打标签：`git tag v1.1.0 && git push origin v1.1.0`
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 这套流程将帮助你清晰管理三个分支，既保持与上游同步，又能独立发布自己的稳定版本。
 =======
+=======
+>>>>>>> develop
 这套流程将帮助你清晰管理三个分支，既保持与上游同步，又能独立发布自己的稳定版本。
 
 ---
@@ -198,4 +201,7 @@ git push origin v1.1.0    # 推送标签到远程
 # 验证标签是否推送成功
 git fetch origin --tags
 git tag -l | grep v1.1.0  # 确认标签存在
+<<<<<<< HEAD
+>>>>>>> develop
+=======
 >>>>>>> develop

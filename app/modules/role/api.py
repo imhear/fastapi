@@ -1,3 +1,8 @@
+<<<<<<< HEAD
+=======
+from app.utils.permission_decorators import permission
+from app.utils.permission_checker import permission_checker
+>>>>>>> develop
 from fastapi import APIRouter, Depends, HTTPException
 from dependency_injector.wiring import inject, Provide
 from typing import List
@@ -18,9 +23,17 @@ async def get_role_options(
 
 
 @router.get("/", response_model=List[RoleResponse])
+<<<<<<< HEAD
 @inject
 async def list_roles(
     role_service: RoleService = Depends(Provide[Container.role_container.role_service]),
+=======
+@permission(code="role:read", name="查看角色列表", description="允许查看角色列表")
+@inject
+async def list_roles(
+    role_service: RoleService = Depends(Provide[Container.role_container.role_service]),
+    _=Depends(permission_checker("role:read"))
+>>>>>>> develop
 ):
     return await role_service.list_roles()
 

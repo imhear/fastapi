@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+# app/modules/user/repository.py
+>>>>>>> develop
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional
 from sqlalchemy import select
@@ -48,6 +52,7 @@ class UserRepository:
         await session.refresh(user)
         return user
 
+<<<<<<< HEAD
     async def update(self, user_id: str, user_update: UserUpdate, session: AsyncSession) -> Optional[SysUser]:
         user = await self.get_by_id(user_id, session=session)
         if not user:
@@ -59,6 +64,13 @@ class UserRepository:
         await session.flush()
         await session.refresh(user)
         return user
+=======
+    async def update(self, obj: SysUser, session: AsyncSession) -> Optional[SysUser]:
+        session.add(obj)
+        await session.flush()
+        await session.refresh(obj)
+        return obj
+>>>>>>> develop
 
     async def delete(self, user_id: str, session: AsyncSession) -> bool:
         user = await self.get_by_id(user_id, session=session)
