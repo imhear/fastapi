@@ -22,3 +22,7 @@ class AbstractUserService(ABC):
         pass
 
     # 可根据需要继续添加其他抽象方法
+    @abstractmethod
+    async def update_user(self, user_id, user_update, current_version, current_user_id, session):
+        pass
+

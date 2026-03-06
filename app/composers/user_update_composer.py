@@ -1,14 +1,17 @@
+# app/composers/user_update_composer.py
 from app.core.uow import SqlAlchemyUoW
-from app.modules.user.service import UserService
-from app.modules.role.service import RoleService
+from app.domain.role.interfaces import AbstractRoleService
+from app.domain.user.interfaces import AbstractUserService
+# from app.modules.user.service import UserService
+# from app.modules.role.service import RoleService
 from app.modules.user.schemas import UserUpdate
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 class UserUpdateComposer:
     def __init__(
         self,
-        user_service: UserService,
-        role_service: RoleService,
+        user_service: AbstractUserService,
+        role_service: AbstractRoleService,
         async_session_factory: async_sessionmaker
     ):
         self.user_service = user_service
