@@ -1,23 +1,21 @@
 # app/di/container.py
 from dependency_injector import containers, providers
-
+from dependency_injector.providers import Factory
 
 from app.core.config import settings
 from app.core.database import engine, AsyncSessionFactory, get_async_db
 from app.core.redis import get_redis_client
-from app.di.modules.user_container import UserContainer
-from app.di.modules.role_container import RoleContainer
-from app.di.modules.permission_container import PermissionContainer
-from app.di.modules.auth_container import AuthContainer
 from app.composers.user_detail import UserDetailComposer
 from app.composers.user_update_composer import UserUpdateComposer
+from app.domain.user.interfaces import AbstractUserService
+from app.domain.user.repositories import AbstractUserRepository
 from app.modules.auth.service import AuthService
 from app.modules.log.service import LogService
 from app.modules.permission.repository import PermissionRepository
 from app.modules.permission.service import PermissionService
 from app.modules.role.repository import RoleRepository
 from app.modules.role.service import RoleService
-from app.modules.user.repository import UserRepository
+from app.modules.user.repository import SQLAlchemyUserRepository
 from app.modules.user.service import UserService
 from app.services.captcha_service import CaptchaService
 from app.services.redis_service import RedisService
@@ -40,7 +38,8 @@ class Container(containers.DeclarativeContainer):
     config.from_pydantic(settings)
 
     # Repo
-    user_repo = providers.Factory(UserRepository)
+    # 方式：用 Factory 直接创建实现类，且不传递任何参数（适配无 __init__ 的类）
+    user_repo: AbstractUserRepository = Factory(SQLAlchemyUserRepository)  # 直接指定抽象类型
     role_repo = providers.Factory(RoleRepository)
     permission_repo = providers.Factory(PermissionRepository)
 
@@ -61,7 +60,7 @@ class Container(containers.DeclarativeContainer):
         CaptchaService,
         redis_service=redis_service,
     )
-    user_service = providers.Factory(
+    user_service:AbstractUserService = Factory(
         UserService,
         repo=user_repo,
         redis_service=redis_service,

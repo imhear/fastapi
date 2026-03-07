@@ -8,6 +8,7 @@ from app.composers.user_update_composer import UserUpdateComposer
 from app.core.auth import CurrentUser
 from app.core.database import get_async_db
 from app.core.responses import ApiResponse
+from app.domain.user.interfaces import AbstractUserService
 from app.models.base import datetime_encoder
 from app.modules.log.schemas import LogLevel
 from app.modules.log.service import LogService
@@ -22,13 +23,13 @@ from app.core.exceptions import ResourceNotFound, BadRequest
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-UserServiceDep = Annotated[UserService, Depends(Provide[Container.user_service])]
+UserServiceDep = Annotated[AbstractUserService, Depends(Provide[Container.user_service])]
 
 @router.get("/{user_id}/profile", response_model=UserProfileResponse)
 @inject
 async def get_user_profile(
     user_id: str,
-    user_service: UserService = Depends(Provide[Container.user_service]),
+    user_service: UserServiceDep,
 ):
     try:
         return await user_service.get_user_profile(user_id)
@@ -41,7 +42,7 @@ async def get_user_profile(
 async def create_user(
     user_in: UserCreate,
     current_user: CurrentUser,
-    user_service: UserService = Depends(Provide[Container.user_service]),
+    user_service: UserServiceDep,
     db: AsyncSession = Depends(get_async_db),
 ):
     try:
@@ -128,6 +129,7 @@ async def update_user(
             http_method=http_method,
         )
         raise HTTPException(status_code=500, detail=f"用户信息更新失败: {str(e)}")
+
 
 
 @router.post(
