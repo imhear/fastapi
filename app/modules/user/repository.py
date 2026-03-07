@@ -8,34 +8,34 @@ from app.modules.user.schemas import UserCreate, UserUpdate
 
 
 class UserRepository:
-    def __init__(self, async_session_factory: async_sessionmaker):
-        self._async_session_factory = async_session_factory
+    # def __init__(self, async_session_factory: async_sessionmaker):
+    #     self._async_session_factory = async_session_factory
 
-    @asynccontextmanager
-    async def transaction(self) -> AsyncGenerator[AsyncSession, None]:
-        async with self._async_session_factory() as session:
-            async with session.begin():
-                yield session
+    # @asynccontextmanager
+    # async def transaction(self) -> AsyncGenerator[AsyncSession, None]:
+    #     async with self._async_session_factory() as session:
+    #         async with session.begin():
+    #             yield session
 
-    @asynccontextmanager
-    async def _get_session(self, session: Optional[AsyncSession] = None) -> AsyncGenerator[AsyncSession, None]:
-        if session is not None:
-            yield session
-        else:
-            async with self._async_session_factory() as new_session:
-                yield new_session
+    # @asynccontextmanager
+    # async def _get_session(self, session: Optional[AsyncSession] = None) -> AsyncGenerator[AsyncSession, None]:
+    #     if session is not None:
+    #         yield session
+    #     else:
+    #         async with self._async_session_factory() as new_session:
+    #             yield new_session
 
-    async def get_by_id(self, user_id: str, session: Optional[AsyncSession] = None) -> Optional[SysUser]:
-        async with self._get_session(session) as s:
-            stmt = select(SysUser).where(SysUser.id == user_id, SysUser.is_deleted == 0)
-            result = await s.execute(stmt)
-            return result.scalar_one_or_none()
+    async def get_by_id(self, session: AsyncSession, user_id: str) -> Optional[SysUser]:
+        # async with self._get_session(session) as s:
+        stmt = select(SysUser).where(SysUser.id == user_id, SysUser.is_deleted == 0)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
 
-    async def get_by_username(self, username: str, session: Optional[AsyncSession] = None) -> Optional[SysUser]:
-        async with self._get_session(session) as s:
-            stmt = select(SysUser).where(SysUser.username == username, SysUser.is_deleted == 0)
-            result = await s.execute(stmt)
-            return result.scalar_one_or_none()
+    async def get_by_username(self, username: str, session: AsyncSession) -> Optional[SysUser]:
+        # async with self._get_session(session) as s:
+        stmt = select(SysUser).where(SysUser.username == username, SysUser.is_deleted == 0)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def create(self, user_in: UserCreate, session: AsyncSession) -> SysUser:
         user = SysUser(

@@ -1,3 +1,6 @@
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_async_db
 from app.utils.permission_decorators import permission
 from app.utils.permission_checker import permission_checker
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,26 +17,28 @@ router = APIRouter(prefix="/roles", tags=["roles"])
 @router.get("/options")
 @inject
 async def get_role_options(
-    role_service: RoleService = Depends(Provide[Container.role_container.role_service]),
+    role_service: RoleService = Depends(Provide[Container.role_service]),
+    db: AsyncSession = Depends(get_async_db),
 ):
-    return await role_service.get_role_options()
+    return await role_service.get_role_options(db)
 
 
 @router.get("/", response_model=List[RoleResponse])
 @permission(code="role:read", name="查看角色列表", description="允许查看角色列表")
 @inject
 async def list_roles(
-    role_service: RoleService = Depends(Provide[Container.role_container.role_service]),
-    _=Depends(permission_checker("role:read"))
+    role_service: RoleService = Depends(Provide[Container.role_service]),
+    _=Depends(permission_checker(session=Depends(get_async_db), required_perm="role:read")),
+    db: AsyncSession = Depends(get_async_db),
 ):
-    return await role_service.list_roles()
+    return await role_service.list_roles(db)
 
 
 @router.get("/{role_id}", response_model=RoleResponse)
 @inject
 async def get_role(
     role_id: str,
-    role_service: RoleService = Depends(Provide[Container.role_container.role_service]),
+    role_service: RoleService = Depends(Provide[Container.role_service]),
 ):
     try:
         return await role_service.get_role_by_id(role_id)
@@ -45,7 +50,7 @@ async def get_role(
 @inject
 async def create_role(
     role_in: RoleCreate,
-    role_service: RoleService = Depends(Provide[Container.role_container.role_service]),
+    role_service: RoleService = Depends(Provide[Container.role_service]),
 ):
     try:
         return await role_service.create_role(role_in)
@@ -58,7 +63,7 @@ async def create_role(
 async def update_role(
     role_id: str,
     role_update: RoleUpdate,
-    role_service: RoleService = Depends(Provide[Container.role_container.role_service]),
+    role_service: RoleService = Depends(Provide[Container.role_service]),
 ):
     try:
         return await role_service.update_role(role_id, role_update)
@@ -70,7 +75,8 @@ async def update_role(
 @inject
 async def delete_role(
     role_id: str,
-    role_service: RoleService = Depends(Provide[Container.role_container.role_service]),
+    role_service: RoleService = Depends(Provide[Container.role_service]),
+    db: AsyncSession = Depends(get_async_db),
 ):
     try:
         await role_service.delete_role(role_id)

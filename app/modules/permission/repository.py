@@ -4,27 +4,28 @@ from typing import AsyncGenerator, List, Set, Optional
 from sqlalchemy import select, distinct
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.modules.permission.models import SysPermission
-from app.modules.role.models import SysRole, sys_role_permission, SysUserRole as sys_user_role
+from app.modules.role.models import SysRole,  SysUserRole as sys_user_role, SysRolePermission, \
+    SysUserRole
 from app.modules.user.models import SysUser
 
 
 class PermissionRepository:
-    def __init__(self, async_session_factory: async_sessionmaker):
-        self._async_session_factory = async_session_factory
-
-    @asynccontextmanager
-    async def transaction(self) -> AsyncGenerator[AsyncSession, None]:
-        async with self._async_session_factory() as session:
-            async with session.begin():
-                yield session
-
-    @asynccontextmanager
-    async def _get_session(self, session: Optional[AsyncSession] = None) -> AsyncGenerator[AsyncSession, None]:
-        if session is not None:
-            yield session
-        else:
-            async with self._async_session_factory() as new_session:
-                yield new_session
+    # def __init__(self, async_session_factory: async_sessionmaker):
+    #     self._async_session_factory = async_session_factory
+    #
+    # @asynccontextmanager
+    # async def transaction(self) -> AsyncGenerator[AsyncSession, None]:
+    #     async with self._async_session_factory() as session:
+    #         async with session.begin():
+    #             yield session
+    #
+    # @asynccontextmanager
+    # async def _get_session(self, session: Optional[AsyncSession] = None) -> AsyncGenerator[AsyncSession, None]:
+    #     if session is not None:
+    #         yield session
+    #     else:
+    #         async with self._async_session_factory() as new_session:
+    #             yield new_session
 
     async def get_by_code(self, db: AsyncSession, code: str) -> Optional[SysPermission]:
         stmt = select(SysPermission).where(SysPermission.code == code, SysPermission.is_deleted == 0)
@@ -44,10 +45,10 @@ class PermissionRepository:
     async def get_user_permissions(self, db: AsyncSession, user_id: str) -> Set[str]:
         stmt = (
             select(distinct(SysPermission.code))
-            .join(sys_role_permission, SysPermission.id == sys_role_permission.c.permission_id)
-            .join(SysRole, sys_role_permission.c.role_id == SysRole.id)
-            .join(sys_user_role, SysRole.id == sys_user_role.c.role_id)
-            .join(SysUser, sys_user_role.c.user_id == SysUser.id)
+            .join(SysRolePermission, SysPermission.id == SysRolePermission.permission_id)
+            .join(SysRole, SysRolePermission.role_id == SysRole.id)
+            .join(SysUserRole, SysRole.id == SysUserRole.role_id)
+            .join(SysUser, SysUserRole.user_id == SysUser.id)
             .where(
                 SysUser.id == user_id,
                 SysUser.is_deleted == 0,

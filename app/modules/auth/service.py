@@ -1,6 +1,7 @@
 # app/modules/auth/service.py
 from typing import Optional
 from jose import JWTError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_jwt_token, verify_password
 from app.domain.auth.interfaces import AbstractAuthService
@@ -16,9 +17,9 @@ class AuthService(AbstractAuthService):
         self.user_service = user_service
         self.redis_service = redis_service
 
-    async def authenticate_user(self, username: str, password: str) -> Optional[SysUser]:
+    async def authenticate_user(self, session: AsyncSession, username: str, password: str) -> Optional[SysUser]:
         """验证用户名密码，成功返回用户对象"""
-        user = await self.user_service.get_user_by_username(username)
+        user = await self.user_service.get_user_by_username(session=session,username=username)
         if not user:
             return None
         if not verify_password(password, user.password):

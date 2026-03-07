@@ -13,18 +13,18 @@ engine = create_async_engine(
 AsyncSessionFactory = async_sessionmaker(engine, expire_on_commit=False)
 
 
-async def get_async_db() -> AsyncSession:
-    """FastAPI 依赖：提供请求级会话，每次请求创建一个会话，请求结束后关闭"""
-    async with AsyncSessionFactory() as session:
-        yield session
-
-# async def get_db():
+# async def get_async_db() -> AsyncSession:
+#     """FastAPI 依赖：提供请求级会话，每次请求创建一个会话，请求结束后关闭"""
 #     async with AsyncSessionFactory() as session:
-#         try:
-#             yield session
-#             await session.commit()   # 无异常时提交
-#         except Exception:
-#             await session.rollback()  # 有异常时回滚
-#             raise
-#         finally:
-#             await session.close()
+#         yield session
+
+async def get_async_db():
+    async with AsyncSessionFactory() as session:
+        try:
+            yield session
+            await session.commit()   # 无异常时提交
+        except Exception:
+            await session.rollback()  # 有异常时回滚
+            raise
+        finally:
+            await session.close()

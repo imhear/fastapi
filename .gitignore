@@ -33,3 +33,4 @@ archive.zip
 .python-version
 .venv
 .env
+business_log_fallback.log

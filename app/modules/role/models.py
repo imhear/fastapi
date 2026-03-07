@@ -5,12 +5,23 @@ from sqlalchemy.dialects.postgresql import UUID
 from app.models.base import BaseModel, Base
 
 # 角色-权限关联表
-sys_role_permission = Table(
-    'sys_role_permission',
-    BaseModel.metadata,
-    Column('role_id', UUID(as_uuid=True), ForeignKey('sys_role.id'), primary_key=True),
-    Column('permission_id', UUID(as_uuid=True), ForeignKey('sys_permission.id'), primary_key=True),
-)
+# sys_role_permission = Table(
+#     'sys_role_permission',
+#     Base.metadata,
+#     Column('role_id', UUID(as_uuid=True), ForeignKey('sys_role.id'), primary_key=True),
+#     Column('permission_id', UUID(as_uuid=True), ForeignKey('sys_permission.id'), primary_key=True),
+# )
+#
+# # 角色-用户关联表模型（不继承 BaseModel）
+class SysRolePermission(Base):
+    __tablename__ = 'sys_role_permission'
+
+    permission_id = Column(UUID(as_uuid=True), ForeignKey('sys_permission.id'), nullable=False)
+    role_id = Column(UUID(as_uuid=True), ForeignKey('sys_role.id'), nullable=False)
+
+    __table_args__ = (
+        PrimaryKeyConstraint('permission_id', 'role_id'),
+    )
 
 class SysRole(BaseModel):
     __tablename__ = 'sys_role'

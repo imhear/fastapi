@@ -3,50 +3,32 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional, List
 from sqlalchemy import select, delete, insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from app.modules.role.models import SysRole, sys_role_permission, SysUserRole
+from app.modules.role.models import SysRole, SysUserRole
 from app.modules.role.schemas import RoleCreate, RoleUpdate
 
 class RoleRepository:
     """角色仓储（只处理角色数据，无用户模块依赖）"""
-    def __init__(self, async_session_factory: async_sessionmaker):
-        self._async_session_factory = async_session_factory
 
-    @asynccontextmanager
-    async def transaction(self) -> AsyncGenerator[AsyncSession, None]:
-        """单模块事务管理器"""
-        async with self._async_session_factory() as session:
-            async with session.begin():
-                yield session
-
-    @asynccontextmanager
-    async def _get_session(self, session: Optional[AsyncSession] = None) -> AsyncGenerator[AsyncSession, None]:
-        """兼容外部/内部会话"""
-        if session is not None:
-            yield session
-        else:
-            async with self._async_session_factory() as new_session:
-                yield new_session
-
-    async def get_by_id(self, role_id: str, session: Optional[AsyncSession] = None) -> Optional[SysRole]:
+    async def get_by_id(self, session: AsyncSession, role_id: str) -> Optional[SysRole]:
         """根据ID查角色"""
-        async with self._get_session(session) as s:
-            stmt = select(SysRole).where(SysRole.id == role_id, SysRole.is_deleted == 0)
-            result = await s.execute(stmt)
-            return result.scalar_one_or_none()
+        # async with self._get_session(session) as s:
+        stmt = select(SysRole).where(SysRole.id == role_id, SysRole.is_deleted == 0)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
 
-    async def get_by_code(self, code: str, session: Optional[AsyncSession] = None) -> Optional[SysRole]:
+    async def get_by_code(self, code: str, session: AsyncSession) -> Optional[SysRole]:
         """根据CODE查角色"""
-        async with self._get_session(session) as s:
-            stmt = select(SysRole).where(SysRole.code == code, SysRole.is_deleted == 0)
-            result = await s.execute(stmt)
-            return result.scalar_one_or_none()
+        # async with self._get_session(session) as s:
+        stmt = select(SysRole).where(SysRole.code == code, SysRole.is_deleted == 0)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
 
-    async def list_all(self, offset: int = 0, limit: int = 100, session: Optional[AsyncSession] = None) -> List[SysRole]:
+    async def list_all(self, session: AsyncSession, offset: int = 0, limit: int = 100) -> List[SysRole]:
         """查询所有未删除角色"""
-        async with self._get_session(session) as s:
-            stmt = select(SysRole).where(SysRole.is_deleted == 0).offset(offset).limit(limit)
-            result = await s.execute(stmt)
-            return result.scalars().all()
+        # async with self._get_session(session) as s:
+        stmt = select(SysRole).where(SysRole.is_deleted == 0).offset(offset).limit(limit)
+        result = await session.execute(stmt)
+        return result.scalars().all()
 
     async def create(self, role_in: RoleCreate, session: AsyncSession) -> SysRole:
         """创建角色"""
@@ -100,22 +82,22 @@ class RoleRepository:
             stmt = insert(sys_role_permission).values(values)
             await session.execute(stmt)
 
-    async def get_options(self, session: Optional[AsyncSession] = None) -> List[SysRole]:
+    async def get_options(self, session: AsyncSession) -> List[SysRole]:
         """查询所有激活且未删除角色"""
-        async with self._get_session(session) as s:
-            stmt = select(SysRole).where(SysRole.status == 1, SysRole.is_deleted == 0).order_by(SysRole.name)
-            result = await s.execute(stmt)
-            return result.scalars().all()
+        # async with self._get_session(session) as s:
+        stmt = select(SysRole).where(SysRole.status == 1, SysRole.is_deleted == 0).order_by(SysRole.name)
+        result = await session.execute(stmt)
+        return result.scalars().all()
 
-    async def get_roles_by_user_id(self, user_id: str, session: Optional[AsyncSession] = None):
-        async with self._get_session(session) as s:
-            stmt = (
-                select(SysRole)
-                .join(SysUserRole, SysUserRole.role_id == SysRole.id)
-                .where(SysUserRole.user_id == user_id, SysRole.status == 1, SysRole.is_deleted == 0)
-            )
-            result = await s.execute(stmt)
-            return result.scalars().all()
+    async def get_roles_by_user_id(self, session: AsyncSession, user_id: str):
+        # async with self._get_session(session) as s:
+        stmt = (
+            select(SysRole)
+            .join(SysUserRole, SysUserRole.role_id == SysRole.id)
+            .where(SysUserRole.user_id == user_id, SysRole.status == 1, SysRole.is_deleted == 0)
+        )
+        result = await session.execute(stmt)
+        return result.scalars().all()
 
     async def assign_roles_to_user(self, session: AsyncSession, user_id: str, role_ids: list[str]):
         """给用户分配角色（先删后加，原子操作）"""

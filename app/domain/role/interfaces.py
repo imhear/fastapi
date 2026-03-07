@@ -21,10 +21,10 @@ class AbstractRoleService(ABC):
     #     pass
 
     @abstractmethod
-    async def assign_roles_to_user(self, user_id, role_ids, session):
+    async def assign_roles_to_user(self, session, user_id, role_ids):
         pass
 
     @abstractmethod
-    async def get_roles_by_user_id(self, user_id, session):
+    async def get_roles_by_user_id(self, session, user_id):
         pass
 

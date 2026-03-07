@@ -11,7 +11,14 @@ from app.di.modules.permission_container import PermissionContainer
 from app.di.modules.auth_container import AuthContainer
 from app.composers.user_detail import UserDetailComposer
 from app.composers.user_update_composer import UserUpdateComposer
+from app.modules.auth.service import AuthService
 from app.modules.log.service import LogService
+from app.modules.permission.repository import PermissionRepository
+from app.modules.permission.service import PermissionService
+from app.modules.role.repository import RoleRepository
+from app.modules.role.service import RoleService
+from app.modules.user.repository import UserRepository
+from app.modules.user.service import UserService
 from app.services.captcha_service import CaptchaService
 from app.services.redis_service import RedisService
 
@@ -32,12 +39,12 @@ class Container(containers.DeclarativeContainer):
     config = providers.Configuration()
     config.from_pydantic(settings)
 
-    # 核心资源（单例）
-    async_session_factory = providers.Singleton(lambda: AsyncSessionFactory)
+    # Repo
+    user_repo = providers.Factory(UserRepository)
+    role_repo = providers.Factory(RoleRepository)
+    permission_repo = providers.Factory(PermissionRepository)
 
-    # 请求级会话资源（由 get_async_db 提供）
-    async_db = providers.Resource(get_async_db)
-
+    # Service
     # 日志服务单例，确保处理器只启动一次
     log_service = providers.Singleton(LogService)
 
@@ -49,50 +56,51 @@ class Container(containers.DeclarativeContainer):
         RedisService,
         redis_client=redis_client,
     )
-
-    # 子容器：用户模块
-    user_container = providers.Container(
-        UserContainer,
-        async_session_factory=async_session_factory,
-        redis_client=redis_client,
-    )
-
     # 验证码服务
     captcha_service = providers.Factory(
         CaptchaService,
         redis_service=redis_service,
     )
-
-    # 子容器：角色模块
-    role_container = providers.Container(
-        RoleContainer,
-        async_session_factory=async_session_factory,
-        redis_client=redis_client,
+    user_service = providers.Factory(
+        UserService,
+        repo=user_repo,
+        redis_service=redis_service,
     )
-
-    # 子容器：权限模块
-    permission_container = providers.Container(
-        PermissionContainer,
-        async_session_factory=async_session_factory,
+    permission_service = providers.Factory(
+        PermissionService,
+        repo=permission_repo,
+        redis_service=redis_service  # 新增：注入RedisService
     )
-
-    # 认证子容器
-    auth_container = providers.Container(
-        AuthContainer,
-        user_service=user_container.user_service,      # 注入 UserService
-        redis_service=redis_service,                   # 注入 RedisService
+    auth_service = providers.Factory(
+        AuthService,
+        user_service=user_service,
+        redis_service=redis_service  # 新增：注入RedisService
     )
+    role_service = providers.Factory(
+        RoleService,
+        repo=role_repo,
+        redis_service=redis_service  # 新增：注入RedisService
+    )
+    # dept_service = providers.Factory(
+    #     DeptService,
+    #     dept_repository=dept_repository,
+    # )
+    # # 字典服务
+    # dict_service = providers.Factory(
+    #     DictService,
+    #     dict_repository=dict_repository,
+    #     redis_service=redis_service
+    # )
 
     # 聚合层 composer - 使用子容器的提供者属性，而不是 .provided
     user_detail_composer = providers.Factory(
         UserDetailComposer,
-        user_service=user_container.user_service,  # 直接引用提供者
-        role_service=role_container.role_service,  # 直接引用提供者
+        user_service=user_service,  # 直接引用提供者
+        role_service=role_service,  # 直接引用提供者
     )
 
     user_update_composer = providers.Factory(
         UserUpdateComposer,
-        user_service=user_container.user_service,
-        role_service=role_container.role_service,
-        async_session_factory=async_session_factory,   # 直接从父容器注入
+        user_service=user_service,
+        role_service=role_service,
     )

@@ -22,7 +22,7 @@ Base = declarative_base()
 class BaseModel(Base):
     __abstract__ = True
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+    id = Column(UUID(as_uuid=True), primary_key=True, default=lambda: str(uuid.uuid4()))
     create_time = Column(DateTime, server_default=func.now(), nullable=False)
     update_time = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
     is_deleted = Column(SmallInteger, default=0, comment='逻辑删除标识(0-未删除 1-已删除)')

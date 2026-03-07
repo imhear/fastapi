@@ -2,8 +2,11 @@
 
 from typing import Any, Annotated
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.composers.user_update_composer import UserUpdateComposer
 from app.core.auth import CurrentUser
+from app.core.database import get_async_db
 from app.core.responses import ApiResponse
 from app.models.base import datetime_encoder
 from app.modules.log.schemas import LogLevel
@@ -19,13 +22,13 @@ from app.core.exceptions import ResourceNotFound, BadRequest
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-UserServiceDep = Annotated[UserService, Depends(Provide[Container.user_container.user_service])]
+UserServiceDep = Annotated[UserService, Depends(Provide[Container.user_service])]
 
 @router.get("/{user_id}/profile", response_model=UserProfileResponse)
 @inject
 async def get_user_profile(
     user_id: str,
-    user_service: UserService = Depends(Provide[Container.user_container.user_service]),
+    user_service: UserService = Depends(Provide[Container.user_service]),
 ):
     try:
         return await user_service.get_user_profile(user_id)
@@ -37,12 +40,14 @@ async def get_user_profile(
 @inject
 async def create_user(
     user_in: UserCreate,
-    user_service: UserService = Depends(Provide[Container.user_container.user_service]),
+    current_user: CurrentUser,
+    user_service: UserService = Depends(Provide[Container.user_service]),
+    db: AsyncSession = Depends(get_async_db),
 ):
     try:
         # TODO add current_user.id to UserCreate.create_user
         # TODO add current_user.id to UserCreate.update_user
-        return await user_service.create_user(user_in)
+        return await user_service.create_user(session=db,user_in=user_in)
     except BadRequest as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -66,6 +71,7 @@ async def update_user(
         current_user: CurrentUser,
         composer: UserUpdateComposer = Depends(Provide[Container.user_update_composer]),
         log_service: LogService = Depends(Provide[Container.log_service]),
+        db: AsyncSession = Depends(get_async_db),
 ) -> Any:
     """
     更新用户信息
@@ -79,6 +85,7 @@ async def update_user(
         api_path = str(request.url.path)
         http_method = request.method
         updated = await composer.update_user_with_roles(
+            session=db,
             user_id=id,
             user_update=user_update,
             current_version=user_update.version,
@@ -172,10 +179,11 @@ async def update_user(
 async def get_user_detail(
     user_id: str,
     composer: UserDetailComposer = Depends(Provide[Container.user_detail_composer]),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """获取用户详细信息（包含角色）"""
     try:
-        result = await composer.compose(user_id)
+        result = await composer.compose(session=db,user_id=user_id)
         return result
     except ResourceNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))

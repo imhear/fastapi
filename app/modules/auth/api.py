@@ -1,6 +1,10 @@
 # app/modules/auth/api.py
 
 from datetime import timedelta
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_async_db
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from dependency_injector.wiring import inject, Provide
@@ -34,8 +38,8 @@ async def generate_captcha(
 @inject
 async def login(
     login_req: LoginRequest,
-    auth_service: AuthService = Depends(Provide[Container.auth_container.auth_service]),
-    user_service: AbstractUserService = Depends(Provide[Container.user_container.user_service]),
+    auth_service: AuthService = Depends(Provide[Container.auth_service]),
+    user_service: AbstractUserService = Depends(Provide[Container.user_service]),
     captcha_service: CaptchaService = Depends(Provide[Container.captcha_service]),
 ):
     """用户登录（支持验证码）"""
@@ -89,11 +93,12 @@ async def login(
 @inject
 async def login_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    auth_service: AuthService = Depends(Provide[Container.auth_container.auth_service]),
-    user_service: AbstractUserService = Depends(Provide[Container.user_container.user_service]),
+    auth_service: AuthService = Depends(Provide[Container.auth_service]),
+    user_service: AbstractUserService = Depends(Provide[Container.user_service]),
+    db: AsyncSession = Depends(get_async_db),
 ) -> dict:
     """OAuth2 兼容的令牌获取接口"""
-    user = await auth_service.authenticate_user(form_data.username, form_data.password)
+    user = await auth_service.authenticate_user(db,form_data.username, form_data.password)
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     if not user.status == 1:
@@ -159,7 +164,7 @@ async def test_token(current_user: SysUser = Depends(get_current_user)):
 @inject
 async def recover_password(
     email: str,
-    user_service: AbstractUserService = Depends(Provide[Container.user_container.user_service]),
+    user_service: AbstractUserService = Depends(Provide[Container.user_service]),
 ):
     """发送密码重置邮件"""
     user = await user_service.get_user_by_email(email)  # 假设有该方法
@@ -176,8 +181,8 @@ async def recover_password(
 @inject
 async def reset_password(
     body: NewPassword,
-    auth_service: AuthService = Depends(Provide[Container.auth_container.auth_service]),
-    user_service: AbstractUserService = Depends(Provide[Container.user_container.user_service]),
+    auth_service: AuthService = Depends(Provide[Container.auth_service]),
+    user_service: AbstractUserService = Depends(Provide[Container.user_service]),
 ):
     """使用令牌重置密码"""
     email = verify_password_reset_token(body.token)

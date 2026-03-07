@@ -1,4 +1,8 @@
 # app/composers/user_detail.py
+from typing import Optional
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.domain.role.interfaces import AbstractRoleService
 from app.domain.user.interfaces import AbstractUserService
 from app.modules.role.schemas import RoleResponse
@@ -15,10 +19,10 @@ class UserDetailComposer:
         self.user_service = user_service
         self.role_service = role_service
 
-    async def compose(self, user_id: str) -> dict:
+    async def compose(self, session: AsyncSession, user_id: str) -> dict:
         # 并行获取用户和角色信息
-        user = await self.user_service.get_user_by_id(user_id)
-        roles = await self.role_service.get_roles_by_user_id(user_id)
+        user = await self.user_service.get_user_by_id(session,user_id)
+        roles = await self.role_service.get_roles_by_user_id(session,user_id)
         return {
             "user": UserResponse.model_validate(user),
             "roles": [RoleResponse.model_validate(r) for r in roles],

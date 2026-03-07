@@ -1,5 +1,8 @@
 from typing import Annotated
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_async_db
 from app.modules.user.models import SysUser
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -16,7 +19,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login/access-token")
 @inject
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
-    user_service: AbstractUserService = Depends(Provide[Container.user_container.user_service])
+    user_service: AbstractUserService = Depends(Provide[Container.user_service]),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     从 JWT token 解析用户 ID，通过 UserService 获取当前用户实体。
@@ -34,7 +38,7 @@ async def get_current_user(
             detail=f"Could not validate credentials: {str(e)}"
         )
 
-    user = await user_service.get_user_by_id(user_id)
+    user = await user_service.get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
