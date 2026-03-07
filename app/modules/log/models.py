@@ -1,6 +1,6 @@
 # app/modules/log/models.py
 from sqlalchemy import Column, String, DateTime, JSON, Text, func
-from app.models.base import Base
+from app.core.database import Base
 from sqlalchemy.dialects.postgresql import UUID
 
 class BusinessLog(Base):

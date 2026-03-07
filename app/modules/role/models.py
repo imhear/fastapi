@@ -2,7 +2,7 @@
 from sqlalchemy import Column, String, SmallInteger, Table, ForeignKey, PrimaryKeyConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
-from app.models.base import BaseModel, Base
+from app.core.database import BaseTableModel, Base
 
 # 角色-权限关联表
 # sys_role_permission = Table(
@@ -23,7 +23,7 @@ class SysRolePermission(Base):
         PrimaryKeyConstraint('permission_id', 'role_id'),
     )
 
-class SysRole(BaseModel):
+class SysRole(BaseTableModel):
     __tablename__ = 'sys_role'
 
     # id = uuid_pk_column()

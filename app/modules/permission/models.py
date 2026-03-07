@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, Boolean, SmallInteger, ForeignKey, Table
 from sqlalchemy.orm import relationship
-from app.models.base import BaseModel
+from app.core.database import BaseTableModel
 
 # 角色-权限关联表
 # sys_role_permission = Table(
@@ -10,7 +10,7 @@ from app.models.base import BaseModel
 #     Column('permission_id', ForeignKey('sys_permission.id'), primary_key=True),
 # )
 
-class SysPermission(BaseModel):
+class SysPermission(BaseTableModel):
     __tablename__ = 'sys_permission'
 
     # id = uuid_pk_column()

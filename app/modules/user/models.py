@@ -1,18 +1,9 @@
 # app/modules/user/models.py
 from sqlalchemy import Column, String, SmallInteger, ForeignKey, Table
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
-from app.models.base import BaseModel
+from app.core.database import BaseTableModel
 
-# sys_user_role = Table(
-#     'sys_user_role',
-#     BaseModel.metadata,
-#     Column('user_id', UUID(as_uuid=True), ForeignKey('sys_user.id'), primary_key=True),
-#     Column('role_id', UUID(as_uuid=True), ForeignKey('sys_role.id'), primary_key=True),
-# )
-
-
-class SysUser(BaseModel):
+class SysUser(BaseTableModel):
     __tablename__ = 'sys_user'
 
     username = Column(String(64), unique=True, nullable=False)

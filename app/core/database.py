@@ -1,5 +1,11 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from app.core.config import settings
+from sqlalchemy.orm import declarative_base
+import uuid
+from datetime import datetime
+
+from sqlalchemy import Column, func, DateTime, SmallInteger, ForeignKey, Integer
+from sqlalchemy.dialects.postgresql import UUID
 
 engine = create_async_engine(
     settings.DATABASE_URL,
@@ -12,11 +18,28 @@ engine = create_async_engine(
 
 AsyncSessionFactory = async_sessionmaker(engine, expire_on_commit=False)
 
+Base = declarative_base()
 
-# async def get_async_db() -> AsyncSession:
-#     """FastAPI 依赖：提供请求级会话，每次请求创建一个会话，请求结束后关闭"""
-#     async with AsyncSessionFactory() as session:
-#         yield session
+class BaseTableModel(Base):
+    __abstract__ = True
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=lambda: str(uuid.uuid4()))
+    create_time = Column(DateTime, server_default=func.now(), nullable=False)
+    update_time = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+    is_deleted = Column(SmallInteger, default=0, comment='逻辑删除标识(0-未删除 1-已删除)')
+    status = Column(SmallInteger, default=1, comment='状态(1-正常 0-禁用)')
+
+    # 审计字段
+    create_by = Column(UUID(as_uuid=True), nullable=True, comment='创建人ID')
+    update_by = Column(UUID(as_uuid=True), nullable=True, comment='最后更新人ID')
+
+    # ... 其他字段 ...
+    version = Column(Integer, default=1, nullable=False, comment='乐观锁版本号')
+
+def datetime_encoder(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"无法序列化类型：{type(obj)}")
 
 async def get_async_db():
     async with AsyncSessionFactory() as session:

@@ -9,7 +9,6 @@ from app.core.auth import CurrentUser
 from app.core.database import get_async_db
 from app.core.responses import ApiResponse
 from app.domain.user.interfaces import AbstractUserService
-from app.models.base import datetime_encoder
 from app.modules.log.schemas import LogLevel
 from app.modules.log.service import LogService
 from app.modules.user.models import SysUser
