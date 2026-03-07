@@ -39,9 +39,10 @@ async def list_roles(
 async def get_role(
     role_id: str,
     role_service: RoleService = Depends(Provide[Container.role_service]),
+    session: AsyncSession = Depends(get_async_db),
 ):
     try:
-        return await role_service.get_role_by_id(role_id)
+        return await role_service.get_role_by_id(session=session, role_id=role_id)
     except ResourceNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
 

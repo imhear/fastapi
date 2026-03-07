@@ -1,5 +1,4 @@
 # app/composers/user_update_composer.py
-from app.core.uow import SqlAlchemyUoW
 from app.domain.role.interfaces import AbstractRoleService
 from app.domain.user.interfaces import AbstractUserService
 # from app.modules.user.service import UserService

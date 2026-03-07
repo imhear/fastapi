@@ -51,4 +51,10 @@ async def get_current_user(
 
     return user
 
+# 依赖：仅超级管理员
+# {"async def get_superuser(current_user: CurrentUser = Depends(get_current_user)):
+#     if not current_user.is_superuser:
+#         raise PermissionDenied("仅超级管理员可操作")
+#     return current_use/r"}
+
 CurrentUser = Annotated[SysUser, Depends(get_current_user)]

@@ -27,7 +27,7 @@ class ApiResponse(BaseModel, Generic[T]):
         return cls(code="00000", data=data, msg=msg)
 
     @classmethod
-    def error(cls, data: T = None, msg: str = "操作失败") -> 'ApiResponse[T]':
+    def fail(cls, data: T = None, msg: str = "操作失败") -> 'ApiResponse[T]':
         """失败响应快捷方法"""
         return cls(code="10001", data=data, msg=msg)
 
@@ -53,3 +53,23 @@ class ResponseCode:
     PERMISSION_DENIED = "20003"
     NOT_FOUND = "30001"
     INTERNAL_ERROR = "50000"
+
+# 分页返回模型
+# class PageResponse(BaseModel, Generic[T]):
+#     total: int = 0
+#     page: int = 1
+#     page_size: int = 10
+#     list: Optional[list[T]] = []
+#
+# class ApiPageResponse(ApiResponse[PageResponse[T]], Generic[T]):
+#     @classmethod
+#     def success(
+#         cls,
+#         total: int,
+#         page: int,
+#         page_size: int,
+#         list: list[T],
+#         msg: str = "操作成功"
+#     ):
+#         page_data = PageResponse(total=total, page=page, page_size=page_size, list=list)
+#         return cls(code="00000", msg=msg, data=page_data)
