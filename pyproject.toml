@@ -47,6 +47,12 @@ dependencies = [
     "typing-extensions>=4.8.0",
     "typing-inspection>=0.4.2",
     "annotated-doc>=0.0.2",
+    "dependency-injector==4.48.3",
+    "alembic>=1.18.4",
+    "asyncpg>=0.31.0",
+    "python-jose>=3.5.0",
+    "passlib[bcrypt]>=1.7.4",
+    "bcrypt==4.3.0",
 ]
 
 [project.urls]

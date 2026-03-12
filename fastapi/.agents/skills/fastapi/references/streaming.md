@@ -58,7 +58,7 @@ async def stream_events() -> AsyncIterable[ServerSentEvent]:
 Use `raw_data` instead of `data` to send pre-formatted strings without JSON encoding:
 
 ```python
-yield ServerSentEvent(raw_data="plain text line", event="log")
+yield ServerSentEvent(raw_data="plain text line", event="audit")
 ```
 
 ## Stream bytes

@@ -19,7 +19,7 @@ def test_events(app: FastAPI):
         response = client.get("/items/")
         assert response.status_code == 200, response.text
         assert response.json() == [{"name": "Foo"}]
-    with open("log.txt") as log:
+    with open("audit.txt") as log:
         assert "Application shutdown" in log.read()
 
 
