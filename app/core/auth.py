@@ -18,13 +18,8 @@ from app.core.security import extract_token_subject
 from app.domain.user.interfaces import AbstractUserService
 from app.core.container import Container
 from fastapi import Request  # 添加导入
-
-# 新增：定义用户上下文数据类（仅存储需要的字段，无ORM依赖）
-@dataclass
-class UserContext:
-    id: Optional[int] = None
-    username: Optional[str] = None
-    is_superuser: Optional[bool] = None
+# 关键修复：从独立文件导入 UserContext
+from app.core.dataclasses import UserContext
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login/access-token")
 

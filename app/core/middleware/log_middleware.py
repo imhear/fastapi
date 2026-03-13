@@ -9,6 +9,7 @@ import re
 from typing import Optional
 
 from app.core.database import create_log_session
+from app.core.log.context import LogContext, RequestParams
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.container import Container
@@ -20,90 +21,86 @@ logger = logging.getLogger(__name__)
 class AccessLogMiddleware(BaseHTTPMiddleware):
     """系统访问日志中间件（显式管理session）"""
     async def dispatch(self, request: Request, call_next) -> Response:
-        # 1. 生成request_id
-        request_id = Container.log_service().generate_request_id()
-        request.state.request_id = request_id
-
-        # 2. 记录请求体（脱敏）
-        request_body = None
-        if settings.LOG_RECORD_BODY and request.method in ["POST", "PUT", "PATCH"]:
-            try:
-                body = await request.body()
-                # 重置body供后续使用
-                request._body = body
-                if len(body) < settings.LOG_MAX_BODY_SIZE:
-                    request_body = self._desensitize_body(body)
-            except Exception:
-                request_body = "无法解析的请求体"
-
-        # 3. 记录开始时间
-        start_time = time.perf_counter()
+        start_time = time.perf_counter()  # 记录开始时间
         response = None
-        status_code = 500  # 默认状态码，异常时使用
+        status_code = 500  # 默认状态码
 
         try:
-            # 4. 执行请求
-            response = await call_next(request)
-            status_code = response.status_code
+            # 预读取请求体并存储（供后续使用）
+            if settings.LOG_RECORD_BODY and request.method in ["POST", "PUT", "PATCH"]:
+                body = await request.body()
+                request._body = body  # 存储原始body供后续使用
+
+            response = await call_next(request)  # 执行请求
+            status_code = response.status_code  # 获取实际状态码
             return response
+        except Exception as e:
+            # 捕获所有异常，确保finally块能正确处理
+            logger.error(f"请求处理异常: {e}", exc_info=True)
+            raise  # 重新抛出异常，让异常处理器处理
         finally:
-            # 5.计算耗时
-            execution_time = int((time.perf_counter() - start_time) * 1000)
-            handler = self._get_handler_name(request)
-            request.state.handler = handler
-            # 日志中间件中operator_id的最终优化版
+            # 1. 获取预生成的LogContext
+            log_context = getattr(request.state, "log_context", None)
+            if not log_context:
+                return  # 无上下文时直接返回，避免后续报错
+
+            # 2. 强制更新用户上下文（确保获取最新值）
+            user_context = getattr(request.state, "user_context", None)
+            if user_context:
+                log_context.user_context = user_context
+
+            # 3. 补充日志信息
+            log_context.execution_time = int((time.perf_counter() - start_time) * 1000)
+            log_context.handler = self._get_handler_name(request)
+
+            # 安全获取状态码
+            if response is not None and hasattr(response, 'status_code'):
+                log_context.http_status = response.status_code
+            else:
+                log_context.http_status = status_code
+
+            # 4. 统一采集所有请求参数（解决原request_body为空的问题）
+            # 读取预存储的body并脱敏
+            body = None
+            if hasattr(request, "_body") and request._body:
+                body = LogContext._desensitize_body(request._body)
+
+            # 安全创建 RequestParams
             try:
-                operator_id = request.state.user_context.id if (
-                        hasattr(request.state, "user_context") and request.state.user_context
-                ) else None
-            except Exception:
-                operator_id = None
+                log_context.request_params = RequestParams(
+                    path_params=dict(request.path_params),
+                    query_params=dict(request.query_params),
+                    body=body  # 使用脱敏后的body
+                )
+            except Exception as e:
+                logger.warning(f"创建RequestParams失败: {e}")
+                log_context.request_params = RequestParams(
+                    path_params={},
+                    query_params={},
+                    body=body
+                )
 
-            # 6.构建日志数据（即使异常也尽量获取上下文）
-            log_data = {
-                "request_id": request_id,
-                "request_uri": str(request.url.path),
-                "request_method": request.method,
-                "request_params": json.dumps(dict(request.query_params)),
-                "request_body": request_body,
-                "http_status": status_code,
-                "execution_time": execution_time,
-                "ip": request.client.host if request.client else "",
-                "user_agent": request.headers.get("user-agent", ""),
-                "operator_id": operator_id,  # 关键修改：读取user_context而非user ORM实例
-                "handler": handler
-            }
-
-            # 7.异步记录日志（独立try块，不影响主流程）
+            # 5.异步记录日志（独立try块，不影响主流程）
             log_session: AsyncSession = None
             try:
                 log_session = await create_log_session()  # 显式创建日志会话
                 log_service = Container.log_service()
-                await log_service.record_access_log(log_session, log_data)
+                # 日志服务层接收LogContext
+                await log_service.record_access_log(log_session, log_context)
                 await log_session.commit()  # 3. 手动提交事务
             except Exception as e:
                 # 异常时回滚
-                if log_session and not log_session.is_active:
+                if log_session and log_session.is_active:
                     await log_session.rollback()
                 logger.error(f"记录访问日志失败: {e}", exc_info=True)
             finally:
                 # 最终确保关闭session
-                if log_session and not log_session.is_active:
-                    await log_session.close()
+                if log_session:
+                    try:
+                        await log_session.close()
+                    except Exception as e:
+                        logger.warning(f"关闭session失败: {e}")
 
-
-    def _desensitize_body(self, body: bytes) -> Optional[str]:
-        """请求体脱敏"""
-        try:
-            data = json.loads(body)
-            # 脱敏敏感字段
-            sensitive_fields = ["password", "token", "secret", "mobile", "id_card"]
-            for field in sensitive_fields:
-                if field in data:
-                    data[field] = "***"
-            return json.dumps(data)
-        except Exception:
-            return body.decode("utf-8", errors="ignore")[:settings.LOG_MAX_BODY_SIZE]
 
     def _get_handler_name(self, request: Request) -> str:
         """稳定获取处理器名称"""
