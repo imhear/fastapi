@@ -1,6 +1,6 @@
 """
 日志模块服务层
-app/core/audit/service.py
+app/core/log/service.py
 """
 import asyncio
 import logging
@@ -39,7 +39,15 @@ class LogService:
         error_code: str,
         error_msg: str,
         error_stack: str,
-        request_uri: Optional[str] = None
+        request_uri: Optional[str] = None,
+        # 新增参数
+        request_method: Optional[str] = None,
+        request_params: Optional[str] = None,
+        request_body: Optional[str] = None,
+        ip: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        operator_id: Optional[int] = None,
+        handler: Optional[str] = None,
     ) -> None:
         """异步记录错误日志"""
         try:
@@ -47,7 +55,15 @@ class LogService:
                 request_id=request_id,
                 error_code=error_code,
                 error_msg=error_msg,
-                request_uri=request_uri
+                request_uri=request_uri,
+                # 新增参数
+                request_method=request_method,
+                request_params=request_params,
+                request_body=request_body,
+                ip=ip,
+                user_agent=user_agent,
+                operator_id=operator_id,
+                handler=handler,
             )
             log.set_error_stack(error_stack)
             session.add(log)

@@ -21,7 +21,7 @@ class SysAccessLog(Base):
     execution_time = Column(Integer, comment="请求耗时(毫秒)")
     ip = Column(String(50), nullable=True, comment="客户端IP")
     user_agent = Column(Text, nullable=True, comment="客户端UA")
-    create_by = Column(BigInteger, nullable=True, comment='操作人ID')
+    operator_id = Column(BigInteger, nullable=True, comment='操作人ID')
     handler = Column(String(100), nullable=True, comment="处理器函数名")
     create_time = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment='创建时间')
     request_body = Column(Text, nullable=True, comment="请求体（脱敏）")
@@ -63,7 +63,15 @@ class SysErrorLog(Base):
     error_msg = Column(Text, comment="错误信息")
     error_stack = Column(Text, comment="异常栈信息")
     request_uri = Column(String(255), nullable=True, comment="请求URI")
-    create_time = Column(DateTime, default=datetime.now, comment="创建时间")
+    create_time = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment='创建时间')
+    # 新增字段（与访问日志对应）
+    request_method = Column(String(10), nullable=True, comment="请求方法")
+    request_params = Column(Text, nullable=True, comment="请求参数（JSON）")
+    request_body = Column(Text, nullable=True, comment="请求体（脱敏）")
+    ip = Column(String(50), nullable=True, comment="客户端IP")
+    user_agent = Column(Text, nullable=True, comment="客户端UA")
+    operator_id = Column(BigInteger, nullable=True, comment='操作人ID')
+    handler = Column(String(100), nullable=True, comment="处理器函数名")
 
     def set_error_stack(self, stack: str):
         """异常栈脱敏（简单版）"""

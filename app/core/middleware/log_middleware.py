@@ -24,7 +24,7 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
         request_id = Container.log_service().generate_request_id()
         request.state.request_id = request_id
 
-        # 2. 可选记录请求体（脱敏）
+        # 2. 记录请求体（脱敏）
         request_body = None
         if settings.LOG_RECORD_BODY and request.method in ["POST", "PUT", "PATCH"]:
             try:
@@ -49,6 +49,15 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
         finally:
             # 5.计算耗时
             execution_time = int((time.perf_counter() - start_time) * 1000)
+            handler = self._get_handler_name(request)
+            request.state.handler = handler
+            # 日志中间件中operator_id的最终优化版
+            try:
+                operator_id = request.state.user_context.id if (
+                        hasattr(request.state, "user_context") and request.state.user_context
+                ) else None
+            except Exception:
+                operator_id = None
 
             # 6.构建日志数据（即使异常也尽量获取上下文）
             log_data = {
@@ -61,10 +70,8 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
                 "execution_time": execution_time,
                 "ip": request.client.host if request.client else "",
                 "user_agent": request.headers.get("user-agent", ""),
-                "create_by": request.state.user.id if (
-                        hasattr(request.state, "user") and request.state.user and hasattr(request.state.user, "id")
-                ) else None,
-                "handler": self._get_handler_name(request)
+                "operator_id": operator_id,  # 关键修改：读取user_context而非user ORM实例
+                "handler": handler
             }
 
             # 7.异步记录日志（独立try块，不影响主流程）

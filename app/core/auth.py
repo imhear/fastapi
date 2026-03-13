@@ -2,7 +2,8 @@
 系统认证服务
 app/core/auth.py
 """
-from typing import Annotated
+from typing import Annotated, Optional
+from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,16 +17,25 @@ from jose import JWTError
 from app.core.security import extract_token_subject
 from app.domain.user.interfaces import AbstractUserService
 from app.core.container import Container
+from fastapi import Request  # 添加导入
+
+# 新增：定义用户上下文数据类（仅存储需要的字段，无ORM依赖）
+@dataclass
+class UserContext:
+    id: Optional[int] = None
+    username: Optional[str] = None
+    is_superuser: Optional[bool] = None
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login/access-token")
 
 
 @inject
 async def get_current_user(
+    request: Request,  # 新增 request 参数
     token: str = Depends(oauth2_scheme),
     user_service: AbstractUserService = Depends(Provide[Container.user_service]),
     db: AsyncSession = Depends(get_async_db),
-):
+)->User:
     """
     从 JWT token 解析用户 ID，通过 UserService 获取当前用户实体。
     """
@@ -53,6 +63,16 @@ async def get_current_user(
     # 可选：检查用户是否激活
     # if not user.is_active:
     #     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive user")
+
+    # 关键修改：存储用户基础信息而非ORM实例
+    request.state.user_context = UserContext(
+        id=user.id,
+        username=user.username,
+        is_superuser=user.is_superuser
+    )
+    # 保留原ORM实例供路由使用（路由内会话仍有效）
+    # 将用户存入 request.state，供后续中间件使用
+    request.state.user = user
 
     return user
 

@@ -1,4 +1,7 @@
-# app/modules/audit/service.py
+"""
+业务审计日志模块服务层
+app/modules/audit/service.py
+"""
 import logging
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +15,7 @@ class AuditService:
     async def record_audit_log(
         self,
         db: AsyncSession,
-        operator_id: str,
+        operator_id: int,
         operator_name: str,
         module: str,
         operation_type: str,
