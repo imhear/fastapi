@@ -6,6 +6,8 @@ from dataclasses import dataclass, asdict
 from typing import Optional, Dict, Any
 from fastapi import Request
 from app.core.dataclasses import UserContext
+import urllib.parse  # 新增：解析表单数据
+import re  # 新增：正则处理
 
 @dataclass
 class RequestParams:
@@ -49,7 +51,8 @@ class LogContext:
         else:
             body_bytes = await request.body()
         if body_bytes:
-            body = cls._desensitize_body(body_bytes)
+            # body = cls._desensitize_body(body_bytes)
+            body = cls._desensitize_body(body_bytes, request.headers.get("content-type", ""))
 
         return cls(
             request_id=getattr(request.state, "request_id", ""),
@@ -66,20 +69,72 @@ class LogContext:
             )
         )
 
-
     @staticmethod
-    def _desensitize_body(body: bytes) -> str:
-        """统一脱敏逻辑（复用并优化）"""
+    def _desensitize_body(body: bytes, content_type: str = "") -> str:
+        """
+        增强版脱敏逻辑：支持JSON、表单、纯文本格式
+        :param body: 原始请求体字节
+        :param content_type: 请求Content-Type头
+        :return: 脱敏后的字符串
+        """
+        from app.config.config import settings  # 导入配置
+
         try:
-            import json
-            data = json.loads(body)
-            sensitive_fields = ["password", "token", "secret", "mobile", "id_card"]
-            for field in sensitive_fields:
-                if field in data:
-                    data[field] = "***"
-            return json.dumps(data)
-        except Exception:
-            return body.decode("utf-8", errors="ignore")[:1024]  # 限制长度
+            # 转换为字符串（处理编码）
+            body_str = body.decode("utf-8", errors="ignore")
+
+            # JSON格式处理（优先级最高）
+            if "application/json" in content_type:
+                import json
+                data = json.loads(body_str)
+                for field in settings.SENSITIVE_FIELDS:
+                    if field in data:
+                        data[field] = settings.LOG_SENSITIVE_MASK
+                return json.dumps(data)
+
+            # 2. 表单格式处理（application/x-www-form-urlencoded）
+            elif "application/x-www-form-urlencoded" in content_type:
+                # 解析表单数据
+                parsed_data = urllib.parse.parse_qs(body_str)
+                # 脱敏敏感字段
+                for field in settings.SENSITIVE_FIELDS:
+                    if field in parsed_data:
+                        parsed_data[field] = [settings.LOG_SENSITIVE_MASK]
+                # 重新拼接为表单字符串
+                return urllib.parse.urlencode(parsed_data, doseq=True)
+
+            # 3. 纯文本/其他格式：使用正则脱敏
+            else:
+                # 正则匹配常见的密码模式进行脱敏
+                result = body_str
+                for field in settings.SENSITIVE_FIELDS:
+                    pattern = rf'({field})=[^&]*'
+                    replacement = rf'\1={settings.LOG_SENSITIVE_MASK}'
+                    result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+                # 限制长度，防止超大请求体
+                return result[:settings.LOG_BODY_MAX_LENGTH]
+
+        except Exception as e:
+            # 任何异常都返回脱敏后的基础字符串
+            import logging
+            logging.warning(f"请求体脱敏失败: {e}")
+            # 保底脱敏：替换所有密码相关字段
+            body_str = body.decode("utf-8", errors="ignore")[:settings.LOG_BODY_MAX_LENGTH]
+            return re.sub(r'(password|pwd)=[^&]*', r'\1=***', body_str, flags=re.IGNORECASE)
+
+    # @staticmethod
+    # def _desensitize_body(body: bytes) -> str:
+    #     """统一脱敏逻辑（复用并优化）"""
+    #     try:
+    #         import json
+    #         data = json.loads(body)
+    #         sensitive_fields = ["password", "token", "secret", "mobile", "id_card"]
+    #         for field in sensitive_fields:
+    #             if field in data:
+    #                 data[field] = "***"
+    #         return json.dumps(data)
+    #     except Exception:
+    #         return body.decode("utf-8", errors="ignore")[:1024]  # 限制长度
 
     def to_dict(self) -> Dict[str, Any]:
         """转为字典，供日志服务层使用"""

@@ -100,11 +100,11 @@ class UserService(AbstractUserService):  # 实现抽象接口
             操作结果消息
         """
         if len(new_password) < 6:
-            raise BadRequest(detail="新密码长度至少6位")
+            raise BadRequest(msg="新密码长度至少6位")
 
         user = await self.get_user_by_id(session=session, user_id=user_id)
         if not user:
-            raise ResourceNotFound(detail=f"用户 '{user_id}' 不存在")
+            raise ResourceNotFound(msg=f"用户 '{user_id}' 不存在")
 
         user.password = get_password_hash(new_password)
         await self.user_repository.update(session=session, obj=user)

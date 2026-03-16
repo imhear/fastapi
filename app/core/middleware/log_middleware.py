@@ -63,7 +63,10 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
             # 读取预存储的body并脱敏
             body = None
             if hasattr(request, "_body") and request._body:
-                body = LogContext._desensitize_body(request._body)
+                # body = LogContext._desensitize_body(request._body)
+                # 关键修改：传递content-type参数
+                content_type = request.headers.get("content-type", "")
+                body = LogContext._desensitize_body(request._body, content_type)
 
             # 安全创建 RequestParams
             try:

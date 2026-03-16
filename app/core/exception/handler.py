@@ -55,7 +55,10 @@ async def global_exception_handler(request: Request, exc: Exception):
                 body = await request.body()
 
             # 关键修复：直接调用静态方法，而非通过实例
-            body_str = LogContext._desensitize_body(body)
+            # body_str = LogContext._desensitize_body(body)
+            # 关键修改：传递content-type参数
+            content_type = request.headers.get("content-type", "")
+            body_str = LogContext._desensitize_body(request._body, content_type)
 
             if log_context.request_params:
                 log_context.request_params.body = body_str

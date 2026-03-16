@@ -1,6 +1,7 @@
 # app/config/config.py
 import os
 import secrets
+from typing import List
 
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -47,9 +48,17 @@ class Settings(BaseSettings):
     REDIS_KEY_PREFIX: str = Field("app:", env="REDIS_KEY_PREFIX")
     REDIS_USE_POOL: bool = Field(True, env="REDIS_USE_POOL")
 
+    # 敏感字段配置（全局）
+    SENSITIVE_FIELDS: List[str] = [
+        "password", "pwd", "token", "secret",
+        "mobile", "phone", "id_card", "idcard",
+        "credit_card", "bank_card", "email_code"
+    ]
+
     # 日志配置
     LOG_RECORD_BODY: bool = True  # 是否记录请求体
-    LOG_MAX_BODY_SIZE: int = 1024  # 请求体最大记录长度
+    LOG_BODY_MAX_LENGTH: int = 1024  # 请求体最大长度
+    LOG_SENSITIVE_MASK: str = "***"  # 脱敏替换符
 
     @computed_field
     @property
