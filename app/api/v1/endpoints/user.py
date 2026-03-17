@@ -29,15 +29,25 @@ from app.modules.user.models import User
 from fastapi import APIRouter, Depends, HTTPException, Request, Path
 from dependency_injector.wiring import inject, Provide
 from app.core.container import Container
-from app.modules.user.schemas import UserCreate, UserResponse, UserProfileResponse, UserUpdate
+from app.modules.user.schemas import UserCreate, UserResponse, UserProfileResponse, UserUpdate, ResetPasswordRequest
 from app.modules.user.service import UserService
 # from app.composers.user_detail import UserDetailComposer
 from app.core.responses import ResourceNotFound, BadRequest
 
+# 新增：导入审计日志装饰器和工具函数
+from app.core.audit.utils import init_audit_log, record_audit_log, generate_operation_content
+# from app.core.audit.decorator import with_audit_log
+
 router = APIRouter(prefix="/users", tags=["users"])
 
 UserServiceDep = Annotated[AbstractUserService, Depends(Provide[Container.user_service])]
+AuditServiceDep = Annotated[AuditService, Depends(Provide[Container.audit_service])]
+DbDep = Annotated[AsyncSession, Depends(get_async_db)]
+LogServiceDep = Annotated[LogService, Depends(Provide[Container.log_service])]
+UserUpdateComposerDep = Annotated[UserUpdateComposer, Depends(Provide[Container.user_update_composer])]
 
+
+# ========== 原有接口（无审计日志，保持不变） ==========
 @router.get("/{user_id}/profile", response_model=UserProfileResponse)
 @inject
 async def get_user_profile(
@@ -66,6 +76,7 @@ async def create_user(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# ========== 重构后接口（使用审计日志装饰器） ==========
 @router.post(
     "/update/{id}",
     # response_model=ApiResponse[dict],
@@ -84,9 +95,9 @@ async def update_user(
         request: Request,
         current_user: CurrentUser,
         composer: UserUpdateComposer = Depends(Provide[Container.user_update_composer]),
-        log_service: LogService = Depends(Provide[Container.log_service]),
         audit_service: AuditService = Depends(Provide[Container.audit_service]),
         db: AsyncSession = Depends(get_async_db),
+        # _=Depends(permission_checker(PermissionCode.USER_UPDATE.value))
 ) -> Any:
     """
     更新用户信息
@@ -95,11 +106,6 @@ async def update_user(
         print(f"🎯 API端点: 开始更新用户 {id}")
         print(f"📨 请求数据: {user_update.model_dump(exclude_unset=True)}")
         """原子更新用户信息及角色（使用组合器）"""
-        # 获取全局request_id和API信息
-        request_id = request.state.request_id
-        api_path = str(request.url.path)
-        http_method = request.method
-        ip_address = request.client.host
         updated = await composer.update_user_with_roles(
             session=db,
             user_id=id,
@@ -107,52 +113,114 @@ async def update_user(
             current_version=user_update.version,
             current_user_id=current_user.id  # 传递用户ID
         )
-        # 记录审计日志
-        operation_content_dict = {"user_id": id, "updates": user_update.model_dump(exclude_unset=True)}
-        # 常用参数：
-        # ensure_ascii = False：避免将非ASCII字符转义为 \u序列。
-        # indent = 2：格式化输出（多行缩进），便于阅读，但会增加日志体积。
-        # default = str：处理不可序列化的类型（如datetime），将其转为字符串。
-        operation_content_str = json.dumps(operation_content_dict, ensure_ascii=False)
-
-        await audit_service.record_audit_log(
+        # 初始化审计日志基础参数
+        log_params = init_audit_log(
             db=db,
-            operator_id=current_user.id,
-            operator_name=current_user.username,
-            module="user",
-            operation_type="UPDATE",
+            audit_service=audit_service,
+            current_user=current_user,
+            request=request,
             business_id=str(id),
-            operation_content=operation_content_str,
-            operation_result="SUCCESS",
-            error_msg=None,
-            ip_address=ip_address,
-            request_id=request_id,
-            )
+            operation="update_user"
+        )
+        # 追加自定义操作内容（更新详情）
+        log_params["operation_content"]["updates"] = user_update.model_dump(exclude_unset=True)
 
+        # 记录成功日志
+        await record_audit_log(**log_params, operation_result="SUCCESS")
         return ApiResponse.success(data=updated, msg="用户信息更新成功")
-    # except ResourceNotFound as e:
-    #     raise HTTPException(status_code=404, detail=str(e))
-    # except BadRequest as e:
-    #     raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        # 记录错误级日志
-        await audit_service.record_audit_log(
+        # 失败时同样初始化日志
+        log_params = init_audit_log(
             db=db,
-            operator_id=current_user.id,
-            operator_name=current_user.username,
-            module="user",
-            operation_type="UPDATE",
+            audit_service=audit_service,
+            current_user=current_user,
+            request=request,
             business_id=str(id),
-            operation_content=operation_content_str,
-            operation_result="FAILURE",
-            error_msg=None,
-            ip_address=ip_address,
-            request_id=request_id,
-            )
+            operation="update_user"
+        )
+        await record_audit_log(**log_params, operation_result="FAILURE", error_msg=str(e))
         raise HTTPException(status_code=500, detail=f"用户信息更新失败: {str(e)}")
 
 
+@router.post(
+    "/reset-password/{id}",
+    response_model=ApiResponse[dict],
+    summary="重置用户密码",
+    description="需要【user:update】权限，仅超级用户可访问"
+)
+# # @permission(
+# #     code=PermissionCode.USER_UPDATE.value,
+# #     name="用户更新权限",
+# #     description="重置用户密码"
+# # )
+# @with_audit_log(reset_password_audit_config)  # 外层：审计日志装饰器
+@inject                                       # 内层：依赖注入（必须）
+async def reset_user_password(
+        id: int,  # 路径参数
+        # new_password: str,  # 请求体
+        req: ResetPasswordRequest,  # 修复：用Pydantic模型接收请求体
+        request: Request,  # 新增：获取请求上下文
+        current_user: CurrentUser,
+        user_service: UserServiceDep,
+        audit_service: AuditServiceDep,  # 新增：注入审计服务
+        db: DbDep,
+) -> Any:
+    """
+    重置用户密码（添加业务审计日志）
+    """
+    try:
+        # 核心业务逻辑（重置密码）
+        result = await user_service.update_password(db, id, req.new_password)
 
+        # 初始化审计日志
+        log_params = init_audit_log(
+            db=db,
+            audit_service=audit_service,
+            current_user=current_user,
+            request=request,
+            business_id=str(id),
+            operation="reset_password"
+        )
+        await record_audit_log(**log_params, operation_result="SUCCESS")
+
+        return ApiResponse.success(data={"message": result}, msg="密码重置成功")
+    except ResourceNotFound as e:
+        log_params = init_audit_log(
+            db=db,
+            audit_service=audit_service,
+            current_user=current_user,
+            request=request,
+            business_id=str(id),
+            operation="reset_password"
+        )
+        await record_audit_log(**log_params, operation_result="FAILURE", error_msg=str(e))
+        raise HTTPException(status_code=404, detail=str(e))
+    except BadRequest as e:
+        log_params = init_audit_log(
+            db=db,
+            audit_service=audit_service,
+            current_user=current_user,
+            request=request,
+            business_id=str(id),
+            operation="reset_password"
+        )
+        await record_audit_log(**log_params, operation_result="FAILURE", error_msg=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        log_params = init_audit_log(
+            db=db,
+            audit_service=audit_service,
+            current_user=current_user,
+            request=request,
+            business_id=str(id),
+            operation="reset_password"
+        )
+        await record_audit_log(**log_params, operation_result="FAILURE", error_msg=str(e))
+        raise HTTPException(status_code=500, detail=f"密码重置失败: {str(e)}")
+
+
+# ========== 待处理代码（过期代码） ==========
+"""
 @router.post(
     "/updateold/{id}",
     # response_model=ApiResponse[dict],
@@ -173,9 +241,7 @@ async def update_user(
         user_service: UserServiceDep,
         # _=Depends(permission_checker(PermissionCode.USER_UPDATE.value))
 ) -> Any:
-    """
     更新用户信息
-    """
     try:
         print(f"🎯 API端点: 开始更新用户 {id}")
         print(f"📨 请求数据: {user_update.model_dump(exclude_unset=True)}")
@@ -195,44 +261,5 @@ async def update_user(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"用户信息更新失败: {str(e)}")
+"""
 
-
-# @router.get("/{user_id}/detail")
-# @inject
-# async def get_user_detail(
-#     user_id: str,
-#     composer: UserDetailComposer = Depends(Provide[Container.user_detail_composer]),
-#     db: AsyncSession = Depends(get_async_db),
-# ):
-#     """获取用户详细信息（包含角色）"""
-#     try:
-#         result = await composer.compose(session=db,user_id=user_id)
-#         return result
-#     except ResourceNotFound as e:
-#         raise HTTPException(status_code=404, detail=str(e))
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post(
-    "/reset-password/{id}",
-    # response_model=Message,
-    summary="重置用户密码",
-    description="需要【user:update】权限，仅超级用户可访问"
-)
-# @permission(
-#     code=PermissionCode.USER_UPDATE.value,
-#     name="用户更新权限",
-#     description="重置用户密码"
-# )
-@inject
-async def reset_user_password(
-    id: int,  # 路径参数
-    new_password: str,  # 请求体
-    current_user: CurrentUser,
-    # _superuser: CurrentSuperuser,  # 无默认值
-    user_service: UserServiceDep,  # 无默认值
-    # _ = Depends(permission_checker(PermissionCode.USER_UPDATE.value))  # 有默认值
-    db: AsyncSession = Depends(get_async_db),
-) -> Any:
-    return await user_service.update_password(db, id, new_password)

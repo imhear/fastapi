@@ -4,6 +4,10 @@ app/main.py
 上次更新：2026/3/12
 """
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.openapi.docs import get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html
+from pathlib import Path
+
 from app.config.config import settings
 
 from app.core.middleware.context_middleware import ContextMiddleware
@@ -13,8 +17,13 @@ from app.api.v1.endpoints import user, auth
 
 
 def create_app() -> FastAPI:
-
-    app = FastAPI(title=settings.PROJECT_NAME, version="1.0")
+    # 禁用默认的 Swagger UI 和 ReDoc
+    app = FastAPI(
+        title=settings.PROJECT_NAME,
+        version="1.0",
+        docs_url=None,  # 禁用默认 /docs
+        redoc_url=None  # 禁用默认 /redoc
+    )
 
     # 注册请求上下文中间件,ContextMiddleware 必须是第一个注册的中间件
     app.add_middleware(ContextMiddleware)
@@ -28,6 +37,34 @@ def create_app() -> FastAPI:
     # 注册路由
     app.include_router(user.router, prefix="/api/v1")
     app.include_router(auth.router, prefix="/api/v1")
+
+    # ==================== 新增：挂载 Swagger UI 静态文件 ====================
+    static_dir = Path(__file__).parent / "api" / "static" / "swagger-ui"
+    if not static_dir.exists():
+        raise RuntimeError(f"Swagger UI 静态文件目录不存在: {static_dir}，请手动创建并放置资源文件")
+    app.mount(
+        "/static/swagger-ui",
+        StaticFiles(directory=str(static_dir)),
+        name="swagger_static"
+    )
+
+    # ==================== 新增：自定义 Swagger UI 路由 ====================
+    @app.get("/docs", include_in_schema=False)
+    async def custom_swagger_ui_html():
+        return get_swagger_ui_html(
+            openapi_url=app.openapi_url,
+            title=f"{app.title} - Swagger UI",
+            swagger_js_url="/static/swagger-ui/swagger-ui-bundle.js",
+            swagger_css_url="/static/swagger-ui/swagger-ui.css",
+            swagger_favicon_url="/static/swagger-ui/favicon.png",
+            # 如果未来需要 OAuth2 重定向，可添加以下参数
+            # oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
+        )
+
+    # （可选）OAuth2 重定向路由（如需 OAuth2 认证可取消注释）
+    @app.get("/docs/oauth2-redirect", include_in_schema=False)
+    async def swagger_ui_redirect():
+        return get_swagger_ui_oauth2_redirect_html()
 
     return app
 

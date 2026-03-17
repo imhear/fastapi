@@ -67,7 +67,7 @@ class Container(containers.DeclarativeContainer):
     user_update_composer = providers.Factory(
         UserUpdateComposer,
         user_service=user_service,  # 注入用户服务依赖
-        log_service=log_service,    # 注入日志服务依赖
+        # log_service=log_service,    # 注入日志服务依赖
     )
 
     # permission_service = providers.Factory(

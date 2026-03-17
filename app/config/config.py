@@ -52,7 +52,8 @@ class Settings(BaseSettings):
     SENSITIVE_FIELDS: List[str] = [
         "password", "pwd", "token", "secret",
         "mobile", "phone", "id_card", "idcard",
-        "credit_card", "bank_card", "email_code"
+        "credit_card", "bank_card", "email_code",
+        "new_password"
     ]
 
     # 日志配置

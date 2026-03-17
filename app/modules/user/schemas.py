@@ -80,3 +80,7 @@ class UserProfileResponse(BaseModel):
     nickname: Optional[str]
     email: Optional[str]
     roles: list[str] = []
+
+# 重置密码请求体模型
+class ResetPasswordRequest(BaseModel):
+    new_password: str
