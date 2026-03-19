@@ -22,13 +22,13 @@ class UserService(AbstractUserService):  # 实现抽象接口
     async def get_user_by_id(self, session: AsyncSession, user_id: int):
         user = await self.user_repository.get_by_id(session=session, user_id=user_id)
         if not user:
-            raise ResourceNotFound("User not found")
+            raise ResourceNotFound(msg=f"用户 '{user_id}' 不存在")
         return user
 
     async def get_user_by_username(self, session: AsyncSession, username: str):
         user = await self.user_repository.get_by_username(session=session, username=username)
         if not user:
-            raise ResourceNotFound("User not found")
+            raise ResourceNotFound(msg=f"用户 '{username}' 不存在")
         return user
 
     async def get_user_profile(self, session: AsyncSession, user_id: str) -> UserProfileResponse:

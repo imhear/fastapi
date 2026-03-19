@@ -27,7 +27,7 @@ class AuditService:
         operation_result: str = "SUCCESS",
         error_msg: Optional[str] = None,
     ) -> None:
-        """记录业务审计日志（异常隔离，不影响主事务）"""
+        """记录业务审计日志（独立会话，手动提交）"""
         try:
             log = BizAuditLog(
                 operator_id=operator_id,
@@ -43,7 +43,8 @@ class AuditService:
                 request_id=log_context.request_id if log_context else ""
             )
             db.add(log)
-            # 无需手动commit，由业务接口的事务统一提交
+            # 移除：不再依赖业务事务提交，由中间件手动commit
         except Exception as e:
             # 仅记录错误，不抛异常
             logger.error(f"业务审计日志记录失败: {e}", exc_info=True)
+            raise  # 抛出异常，让中间件处理回滚

@@ -12,6 +12,7 @@ from app.config.config import settings
 
 from app.core.middleware.context_middleware import ContextMiddleware
 from app.core.middleware.log_middleware import AccessLogMiddleware
+from app.core.middleware.audit_middleware import BizAuditLogMiddleware
 from app.core.exception.handler import global_exception_handler
 from app.api.v1.endpoints import user, auth
 
@@ -25,13 +26,16 @@ def create_app() -> FastAPI:
         redoc_url=None  # 禁用默认 /redoc
     )
 
-    # 注册请求上下文中间件,ContextMiddleware 必须是第一个注册的中间件
+    # 1. 注册请求上下文中间件,ContextMiddleware 必须是第一个注册的中间件
     app.add_middleware(ContextMiddleware)
 
-    # 注册系统访问日志中间件
+    # 2. 注册系统访问日志中间件
     app.add_middleware(AccessLogMiddleware)
 
-    # 注册全局异常处理器中间件
+    # 3. 业务审计日志中间件（新增）
+    app.add_middleware(BizAuditLogMiddleware)
+
+    # 4. 注册全局异常处理器中间件
     app.add_exception_handler(Exception, global_exception_handler)
 
     # 注册路由

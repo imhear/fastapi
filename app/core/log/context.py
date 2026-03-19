@@ -27,7 +27,7 @@ class LogContext:
     request_method: str
     ip: Optional[str] = ""  # 改为空字符串而非 None
     user_agent: Optional[str] = ""
-    handler: Optional[str] = ""
+    handler: Optional[str] =""
     # 完整请求参数
     request_params: Optional[RequestParams] = None
     # 响应信息（访问日志专用）

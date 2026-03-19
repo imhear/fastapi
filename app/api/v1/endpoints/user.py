@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.composers.user_update_composer import UserUpdateComposer
 from app.core.auth import CurrentUser
 from app.core.database import get_async_db
+from app.core.dataclasses import AuditContext
 from app.core.log.service import LogService
 from app.core.responses import ApiResponse
 from app.domain.user.interfaces import AbstractUserService
@@ -35,7 +36,7 @@ from app.modules.user.service import UserService
 from app.core.responses import ResourceNotFound, BadRequest
 
 # 新增：导入审计日志装饰器和工具函数
-from app.core.audit.utils import init_audit_log, record_audit_log, generate_operation_content
+from app.core.audit.utils import generate_operation_content
 # from app.core.audit.decorator import with_audit_log
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -113,32 +114,8 @@ async def update_user(
             current_version=user_update.version,
             current_user_id=current_user.id  # 传递用户ID
         )
-        # 初始化审计日志基础参数
-        log_params = init_audit_log(
-            db=db,
-            audit_service=audit_service,
-            current_user=current_user,
-            request=request,
-            business_id=str(id),
-            operation="update_user"
-        )
-        # 追加自定义操作内容（更新详情）
-        log_params["operation_content"]["updates"] = user_update.model_dump(exclude_unset=True)
-
-        # 记录成功日志
-        await record_audit_log(**log_params, operation_result="SUCCESS")
         return ApiResponse.success(data=updated, msg="用户信息更新成功")
     except Exception as e:
-        # 失败时同样初始化日志
-        log_params = init_audit_log(
-            db=db,
-            audit_service=audit_service,
-            current_user=current_user,
-            request=request,
-            business_id=str(id),
-            operation="update_user"
-        )
-        await record_audit_log(**log_params, operation_result="FAILURE", error_msg=str(e))
         raise HTTPException(status_code=500, detail=f"用户信息更新失败: {str(e)}")
 
 
@@ -157,7 +134,6 @@ async def update_user(
 @inject                                       # 内层：依赖注入（必须）
 async def reset_user_password(
         id: int,  # 路径参数
-        # new_password: str,  # 请求体
         req: ResetPasswordRequest,  # 修复：用Pydantic模型接收请求体
         request: Request,  # 新增：获取请求上下文
         current_user: CurrentUser,
@@ -166,58 +142,27 @@ async def reset_user_password(
         db: DbDep,
 ) -> Any:
     """
-    重置用户密码（添加业务审计日志）
+    重置用户密码（仅业务逻辑+标准化透传审计上下文）
     """
+    # 初始化审计上下文（仅这一行透传代码）
+    request.state.audit_context = AuditContext(
+        module="user",
+        operation_type="UPDATE",
+        business_id=str(id),
+        operation_content={"user_id": id, "operation": "reset_password"}
+    )
+
     try:
         # 核心业务逻辑（重置密码）
         result = await user_service.update_password(db, id, req.new_password)
-
-        # 初始化审计日志
-        log_params = init_audit_log(
-            db=db,
-            audit_service=audit_service,
-            current_user=current_user,
-            request=request,
-            business_id=str(id),
-            operation="reset_password"
-        )
-        await record_audit_log(**log_params, operation_result="SUCCESS")
-
         return ApiResponse.success(data={"message": result}, msg="密码重置成功")
-    except ResourceNotFound as e:
-        log_params = init_audit_log(
-            db=db,
-            audit_service=audit_service,
-            current_user=current_user,
-            request=request,
-            business_id=str(id),
-            operation="reset_password"
-        )
-        await record_audit_log(**log_params, operation_result="FAILURE", error_msg=str(e))
-        raise HTTPException(status_code=404, detail=str(e))
-    except BadRequest as e:
-        log_params = init_audit_log(
-            db=db,
-            audit_service=audit_service,
-            current_user=current_user,
-            request=request,
-            business_id=str(id),
-            operation="reset_password"
-        )
-        await record_audit_log(**log_params, operation_result="FAILURE", error_msg=str(e))
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        log_params = init_audit_log(
-            db=db,
-            audit_service=audit_service,
-            current_user=current_user,
-            request=request,
-            business_id=str(id),
-            operation="reset_password"
-        )
-        await record_audit_log(**log_params, operation_result="FAILURE", error_msg=str(e))
-        raise HTTPException(status_code=500, detail=f"密码重置失败: {str(e)}")
 
+    except (ResourceNotFound, BadRequest, Exception) as e:
+        # 失败时仅更新审计上下文状态
+        request.state.audit_context.operation_result = "FAILURE"
+        request.state.audit_context.error_msg = str(e)
+        status_code = 404 if isinstance(e, ResourceNotFound) else 400 if isinstance(e, BadRequest) else 500
+        raise HTTPException(status_code=status_code, detail=str(e))
 
 # ========== 待处理代码（过期代码） ==========
 """
