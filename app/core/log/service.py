@@ -55,7 +55,9 @@ class LogService:
                 request_id=log_dict.get("request_id", ""),
                 request_uri=log_dict.get("request_uri", ""),
                 request_method=log_dict.get("request_method", ""),
-                request_params=json.dumps(query_params),
+                # request_params=json.dumps(query_params),
+                # 核心修改：ensure_ascii=False 保留中文，indent可选（美化格式）
+                request_params=json.dumps(query_params, ensure_ascii=False),
                 request_body=body,
                 http_status=log_dict.get("http_status", 500),
                 execution_time=log_dict.get("execution_time", 0),
@@ -105,7 +107,8 @@ class LogService:
                 request_id=log_dict.get("request_id", ""),
                 request_uri=log_dict.get("request_uri", ""),
                 request_method=log_dict.get("request_method", ""),
-                request_params=json.dumps(query_params),
+                # 核心修改：ensure_ascii=False 保留中文，indent可选（美化格式）
+                request_params=json.dumps(query_params, ensure_ascii=False),
                 request_body=body,
                 ip=log_dict.get("ip", ""),
                 user_agent=log_dict.get("user_agent", ""),

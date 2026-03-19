@@ -70,6 +70,28 @@ class LogContext:
         )
 
     @staticmethod
+    def _desensitize_value(field: str, value: Any) -> Any:
+        """根据字段名对单个值进行脱敏"""
+        from app.config.config import settings
+
+        # 如果值不是字符串，先转换为字符串（例如数字手机号）
+        if not isinstance(value, str):
+            value = str(value)
+
+        # 获取该字段的脱敏规则
+        rule = settings.SENSITIVE_FIELD_RULES.get(field)
+        if rule:
+            try:
+                return rule(value)
+            except Exception as e:
+                import logging
+                logging.warning(f"字段 {field} 脱敏失败: {e}")
+                return settings.LOG_SENSITIVE_MASK
+        else:
+            # 无特定规则，使用默认掩码
+            return settings.LOG_SENSITIVE_MASK
+
+    @staticmethod
     def _desensitize_body(body: bytes, content_type: str = "") -> str:
         """
         增强版脱敏逻辑：支持JSON、表单、纯文本格式
@@ -89,19 +111,30 @@ class LogContext:
                 data = json.loads(body_str)
                 for field in settings.SENSITIVE_FIELDS:
                     if field in data:
-                        data[field] = settings.LOG_SENSITIVE_MASK
-                return json.dumps(data)
+                        data[field] = LogContext._desensitize_value(field, data[field])
+                return json.dumps(data, ensure_ascii=False)  # ensure_ascii=False 保留中文
 
             # 2. 表单格式处理（application/x-www-form-urlencoded）
             elif "application/x-www-form-urlencoded" in content_type:
-                # 解析表单数据
-                parsed_data = urllib.parse.parse_qs(body_str)
+                # 解析表单数据（先解码URL编码）
+                # 表单提交的application/x-www-form-urlencoded格式会自动将中文转为URL编码（百分号形式），但日志中必须还原为原生中文（否则可读性为0）。
+                body_str_decoded = urllib.parse.unquote(body_str)  # URL解码
+                parsed_data = urllib.parse.parse_qs(body_str_decoded)
                 # 脱敏敏感字段
                 for field in settings.SENSITIVE_FIELDS:
                     if field in parsed_data:
-                        parsed_data[field] = [settings.LOG_SENSITIVE_MASK]
-                # 重新拼接为表单字符串
-                return urllib.parse.urlencode(parsed_data, doseq=True)
+                        # 表单值可能是列表（多值），对每个值脱敏
+                        parsed_data[field] = [
+                            LogContext._desensitize_value(field, v) for v in parsed_data[field]
+                        ]
+
+                # 重新拼接时无需URL编码（日志存储原生字符串）
+                # 手动拼接为 key=value&key=value 格式，避免自动URL编码
+                body_parts = []
+                for key, values in parsed_data.items():
+                    for val in values:
+                        body_parts.append(f"{key}={val}")
+                return "&".join(body_parts)
 
             # 3. 纯文本/其他格式：使用正则脱敏
             else:
@@ -122,19 +155,6 @@ class LogContext:
             body_str = body.decode("utf-8", errors="ignore")[:settings.LOG_BODY_MAX_LENGTH]
             return re.sub(r'(password|pwd)=[^&]*', r'\1=***', body_str, flags=re.IGNORECASE)
 
-    # @staticmethod
-    # def _desensitize_body(body: bytes) -> str:
-    #     """统一脱敏逻辑（复用并优化）"""
-    #     try:
-    #         import json
-    #         data = json.loads(body)
-    #         sensitive_fields = ["password", "token", "secret", "mobile", "id_card"]
-    #         for field in sensitive_fields:
-    #             if field in data:
-    #                 data[field] = "***"
-    #         return json.dumps(data)
-    #     except Exception:
-    #         return body.decode("utf-8", errors="ignore")[:1024]  # 限制长度
 
     def to_dict(self) -> Dict[str, Any]:
         """转为字典，供日志服务层使用"""

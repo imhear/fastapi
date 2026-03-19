@@ -1,7 +1,7 @@
 # app/config/config.py
 import os
 import secrets
-from typing import List
+from typing import List, Dict, Callable
 
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -48,18 +48,29 @@ class Settings(BaseSettings):
     REDIS_KEY_PREFIX: str = Field("app:", env="REDIS_KEY_PREFIX")
     REDIS_USE_POOL: bool = Field(True, env="REDIS_USE_POOL")
 
-    # 敏感字段配置（全局）
-    SENSITIVE_FIELDS: List[str] = [
-        "password", "pwd", "token", "secret",
-        "mobile", "phone", "id_card", "idcard",
-        "credit_card", "bank_card", "email_code",
-        "new_password"
-    ]
-
     # 日志配置
     LOG_RECORD_BODY: bool = True  # 是否记录请求体
     LOG_BODY_MAX_LENGTH: int = 1024  # 请求体最大长度
-    LOG_SENSITIVE_MASK: str = "***"  # 脱敏替换符
+
+    # 敏感字段列表（用于快速判断是否需要脱敏）
+    SENSITIVE_FIELDS: List[str] = [
+        "password", "pwd", "token", "secret",
+        "mobile", "phone", "id_card", "idcard",
+        "credit_card", "bank_card", "email",
+        "new_password"
+    ]
+
+    # 脱敏替换符（默认值）
+    LOG_SENSITIVE_MASK: str = "***"
+
+    # 字段级别脱敏规则（返回处理后的字符串）
+    SENSITIVE_FIELD_RULES: Dict[str, Callable[[str], str]] = {
+        "password": lambda v: "***",
+        "mobile": lambda v: v[:3] + "****" + v[-4:] if len(v) >= 11 else v,
+        "email": lambda v: v[:2] + "***" + v[v.find('@'):] if '@' in v else v,
+        "token": lambda v: "***",
+        # 可根据需要添加更多规则
+    }
 
     @computed_field
     @property
