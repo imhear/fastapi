@@ -21,9 +21,9 @@ from app.core.auth import CurrentUser
 from app.core.database import get_async_db
 from app.core.dataclasses import AuditContext
 from app.core.log.service import LogService
-from app.core.responses import ApiResponse
+from app.core.responses import ApiResponse, DataOutdated
 from app.domain.user.interfaces import AbstractUserService
-from app.modules.audit.service import AuditService
+# from app.modules.audit.service import AuditService
 # from app.modules.log.schemas import LogLevel
 # from app.modules.log.service import LogService
 from app.modules.user.models import User
@@ -42,7 +42,7 @@ from app.core.audit.utils import generate_operation_content
 router = APIRouter(prefix="/users", tags=["users"])
 
 UserServiceDep = Annotated[AbstractUserService, Depends(Provide[Container.user_service])]
-AuditServiceDep = Annotated[AuditService, Depends(Provide[Container.audit_service])]
+# AuditServiceDep = Annotated[AuditService, Depends(Provide[Container.audit_service])]
 DbDep = Annotated[AsyncSession, Depends(get_async_db)]
 LogServiceDep = Annotated[LogService, Depends(Provide[Container.log_service])]
 UserUpdateComposerDep = Annotated[UserUpdateComposer, Depends(Provide[Container.user_update_composer])]
@@ -96,7 +96,7 @@ async def update_user(
         request: Request,
         current_user: CurrentUser,
         composer: UserUpdateComposer = Depends(Provide[Container.user_update_composer]),
-        audit_service: AuditService = Depends(Provide[Container.audit_service]),
+        # audit_service: AuditService = Depends(Provide[Container.audit_service]),
         db: AsyncSession = Depends(get_async_db),
         # _=Depends(permission_checker(PermissionCode.USER_UPDATE.value))
 ) -> Any:
@@ -138,7 +138,7 @@ async def reset_user_password(
         request: Request,  # 新增：获取请求上下文
         current_user: CurrentUser,
         user_service: UserServiceDep,
-        audit_service: AuditServiceDep,  # 新增：注入审计服务
+        # audit_service: AuditServiceDep,  # 新增：注入审计服务
         db: DbDep,
 ) -> Any:
     """
@@ -157,12 +157,20 @@ async def reset_user_password(
         result = await user_service.update_password(db, id, req.new_password)
         return ApiResponse.success(data={"message": result}, msg="密码重置成功")
 
-    except (ResourceNotFound, BadRequest, Exception) as e:
-        # 失败时仅更新审计上下文状态
+    except (ResourceNotFound, BadRequest, DataOutdated) as e:
         request.state.audit_context.operation_result = "FAILURE"
         request.state.audit_context.error_msg = str(e)
-        status_code = 404 if isinstance(e, ResourceNotFound) else 400 if isinstance(e, BadRequest) else 500
-        raise HTTPException(status_code=status_code, detail=str(e))
+        raise  # 直接抛出原异常（仍为 HTTPException 子类）
+    except Exception as e:
+        request.state.audit_context.operation_result = "FAILURE"
+        request.state.audit_context.error_msg = str(e)
+        raise  # 直接抛出原异常
+    # except (ResourceNotFound, BadRequest, Exception) as e:
+    #     # 失败时仅更新审计上下文状态
+    #     request.state.audit_context.operation_result = "FAILURE"
+    #     request.state.audit_context.error_msg = str(e)
+    #     status_code = 404 if isinstance(e, ResourceNotFound) else 400 if isinstance(e, BadRequest) else 500
+    #     raise HTTPException(status_code=status_code, detail=str(e))
 
 # ========== 待处理代码（过期代码） ==========
 """

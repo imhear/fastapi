@@ -9,7 +9,6 @@ from app.config.config import settings
 from app.core.log.service import LogService
 from app.domain.user.interfaces import AbstractUserService
 from app.domain.user.repositories import AbstractUserRepository
-from app.modules.audit.service import AuditService
 from app.modules.auth.service import AuthService
 from app.modules.user.repository import SQLAlchemyUserRepository
 from app.modules.user.service import UserService
@@ -43,7 +42,7 @@ class Container(containers.DeclarativeContainer):
     # 日志服务（单例），确保处理器只启动一次
     log_service = providers.Singleton(LogService)
     # 审计服务（单例）
-    audit_service = providers.Singleton(AuditService)
+    # audit_service = providers.Singleton(AuditService)
 
     # Redis 客户端资源
     # redis_client = providers.Resource(get_redis_client)

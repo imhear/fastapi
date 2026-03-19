@@ -4,9 +4,11 @@ app/modules/user/repository.py
 """
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.core.responses import DataOutdated
 from app.domain.user.repositories import AbstractUserRepository
 from app.modules.user.models import User
 from app.modules.user.schemas import UserCreate, UserUpdate
@@ -30,8 +32,17 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         return user
 
     async def update(self, session: AsyncSession, obj: User) -> Optional[User]:
+        # session.add(obj)
+        # await session.flush()
+        # await session.refresh(obj)
+        # return obj
         session.add(obj)
-        await session.flush()
+        try:
+            await session.flush()          # 将更改发送到数据库，此时会进行版本检查
+        except StaleDataError:
+            # 版本不匹配，说明数据已被其他事务修改
+            raise DataOutdated(msg="数据已被其他用户修改，请刷新后重试")
+            # raise ConcurrentModificationError("数据已被其他用户修改，请刷新后重试")
         await session.refresh(obj)
         return obj
 

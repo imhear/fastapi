@@ -3,7 +3,7 @@
 app/main.py
 上次更新：2026/3/12
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.docs import get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html
 from pathlib import Path
@@ -37,6 +37,7 @@ def create_app() -> FastAPI:
 
     # 4. 注册全局异常处理器中间件
     app.add_exception_handler(Exception, global_exception_handler)
+    # app.add_exception_handler(HTTPException, global_exception_handler)
 
     # 注册路由
     app.include_router(user.router, prefix="/api/v1")

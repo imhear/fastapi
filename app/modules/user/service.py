@@ -6,6 +6,7 @@ from typing import Dict, Any, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.database import AsyncSessionFactory
 from app.core.security import get_password_hash
 from app.domain.user.repositories import AbstractUserRepository
 from app.modules.user.models import User
@@ -106,11 +107,16 @@ class UserService(AbstractUserService):  # 实现抽象接口
         if not user:
             raise ResourceNotFound(msg=f"用户 '{user_id}' 不存在")
 
+        # 2. 故意修改数据库中的 version（绕过 ORM）
+        from sqlalchemy import update
+        async with AsyncSessionFactory() as session2:
+            user2 = await self.user_repository.get_by_id(session2, user_id)
+            user2.password = get_password_hash(new_password)
+            await self.user_repository.update(session=session2, obj=user2)
+            await session2.commit()
+
         user.password = get_password_hash(new_password)
         await self.user_repository.update(session=session, obj=user)
-
-        # 记录密码修改日志（生产环境建议）
-        # await self._log_password_change(user_id)
 
         return "密码重置成功" # Message(message="密码重置成功")
 

@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any, TypedDict
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Request
 from app.core.auth import CurrentUser
-from app.modules.audit.service import AuditService
+# from app.modules.audit.service import AuditService
 
 logger = logging.getLogger(__name__)
 

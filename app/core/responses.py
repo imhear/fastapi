@@ -104,4 +104,9 @@ class AuthFailed(BusinessException):
 # 数据已存在
 class DataExists(BusinessException):
     def __init__(self, msg: str = "数据已存在"):
-        super().__init__(code="40001", msg=msg)
+        super().__init__(code="40001", msg=msg, status_code=status.HTTP_400_BAD_REQUEST)
+
+# 数据已过时
+class DataOutdated(BusinessException):
+    def __init__(self, msg: str = "数据已过时/已被更新"):
+        super().__init__(code="40009", msg=msg, status_code=status.HTTP_409_CONFLICT)
