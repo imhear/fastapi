@@ -34,6 +34,8 @@ class BizAuditLogMiddleware(BaseHTTPMiddleware):
         audit_context: AuditContext = getattr(request.state, "audit_context", None)
         if not audit_context:
             return
+        if audit_context.operation_result is None:
+            logger.error(f"审计上下文缺少 operation_result，request_id: {getattr(request.state, 'request_id', '')}")
 
         # 2. 获取用户上下文
         user_context: UserContext = getattr(request.state, "user_context", None)

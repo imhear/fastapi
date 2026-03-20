@@ -134,11 +134,20 @@ async def update_user(
             current_version=user_update.version,
             current_user_id=current_user.id  # 传递用户ID
         )
-        return ApiResponse.success(data=updated, msg="用户信息更新成功")
+        # 业务成功，立即设置审计结果
+        request.state.audit_context.operation_result = "SUCCESS"
+        # return ApiResponse.success(data=updated, msg="用户信息更新成功")
     except (ResourceNotFound, BadRequest, DataOutdated, Exception) as e:
         request.state.audit_context.operation_result = "FAILURE"
         request.state.audit_context.error_msg = str(e)
-        raise #HTTPException(status_code=500, detail=f"用户信息更新失败: {str(e)}")
+        raise
+
+    # 保留分离写法，为了确保审计日志不受响应序列化影响
+    try:
+        return ApiResponse.success(data=updated, msg="用户信息更新成功")
+    except Exception as e:
+        # 记录系统错误日志（由全局异常处理器处理）
+        raise
 
 
 @router.post(
@@ -177,7 +186,9 @@ async def reset_user_password(
     try:
         # 核心业务逻辑（重置密码）
         result = await user_service.update_password(db, id, req.new_password)
-        return ApiResponse.success(data={"message": result}, msg="密码重置成功")
+        # 业务成功，立即设置审计结果
+        request.state.audit_context.operation_result = "SUCCESS"
+        # return ApiResponse.success(data={"message": result}, msg="密码重置成功")
 
     except (ResourceNotFound, BadRequest, DataOutdated) as e:
         request.state.audit_context.operation_result = "FAILURE"
@@ -187,6 +198,13 @@ async def reset_user_password(
         request.state.audit_context.operation_result = "FAILURE"
         request.state.audit_context.error_msg = str(e)
         raise  # 直接抛出原异常
+
+    # 单独处理响应（此处的异常不会影响审计结果）
+    try:
+        return ApiResponse.success(data=result, msg="更新成功")
+    except Exception as e:
+        # 记录系统错误日志（由全局异常处理器处理）
+        raise
     # except (ResourceNotFound, BadRequest, Exception) as e:
     #     # 失败时仅更新审计上下文状态
     #     request.state.audit_context.operation_result = "FAILURE"

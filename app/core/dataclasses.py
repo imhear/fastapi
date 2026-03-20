@@ -20,5 +20,5 @@ class AuditContext:
     operation_type: str  # 操作类型：CREATE/UPDATE/DELETE
     business_id: str  # 被操作资源ID
     operation_content: Dict[str, Any]  # 操作详情
-    operation_result: str = "SUCCESS"  # SUCCESS/FAILURE
+    operation_result: str = None  # 操作结果
     error_msg: Optional[str] = None  # 失败时的错误信息

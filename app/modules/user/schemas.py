@@ -2,8 +2,6 @@
 用户模块校验层
 app/modules/user/schemas.py
 """
-from uuid import UUID
-
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 
@@ -43,8 +41,8 @@ class UserUpdate(BaseModel):
     avatar: Optional[str] = Field(None, description="头像URL", example="https://example.com/avatar.jpg")
 
     # 组织信息
-    dept_id: Optional[str] = Field(None, description="部门ID", alias="deptId",
-                                   example="22222222-2222-2222-2222-222222222222")
+    # dept_id: Optional[str] = Field(None, description="部门ID", alias="deptId",
+    #                                example="22222222-2222-2222-2222-222222222222")
     status: Optional[int] = Field(None, description="状态(1-正常 0-禁用)", ge=0, le=1, example=1)
     version: Optional[int] = Field(None, description="乐观锁版本号", ge=0, le=9999, example=1)
 
@@ -55,11 +53,12 @@ class UserUpdate(BaseModel):
         populate_by_name=True,  # 支持别名
         json_schema_extra={
             "example": {
+                "version":1,
                 "nickname": "新昵称",
                 "gender": 1,
                 "mobile": "13888888888",
                 "email": "new@example.com",
-                "deptId": "22222222-2222-2222-2222-222222222222",
+                # "deptId": 1,
                 "status": 1,
                 "roleIds": ["55555555-5555-5555-5555-555555555555"]
             }
@@ -68,14 +67,14 @@ class UserUpdate(BaseModel):
 
 
 class UserResponse(UserBase):
-    id: UUID
+    id: int
 
     class Config:
         from_attributes = True
 
 
 class UserProfileResponse(BaseModel):
-    id: UUID
+    id: int
     username: str
     nickname: Optional[str]
     email: Optional[str]

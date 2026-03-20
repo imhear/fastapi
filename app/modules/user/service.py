@@ -107,13 +107,13 @@ class UserService(AbstractUserService):  # 实现抽象接口
         if not user:
             raise ResourceNotFound(msg=f"用户 '{user_id}' 不存在")
 
-        # 2. 故意修改数据库中的 version（绕过 ORM）
-        from sqlalchemy import update
-        async with AsyncSessionFactory() as session2:
-            user2 = await self.user_repository.get_by_id(session2, user_id)
-            user2.password = get_password_hash(new_password)
-            await self.user_repository.update(session=session2, obj=user2)
-            await session2.commit()
+        # # 2. 故意修改数据库中的 version（绕过 ORM）
+        # from sqlalchemy import update
+        # async with AsyncSessionFactory() as session2:
+        #     user2 = await self.user_repository.get_by_id(session2, user_id)
+        #     user2.password = get_password_hash(new_password)
+        #     await self.user_repository.update(session=session2, obj=user2)
+        #     await session2.commit()
 
         user.password = get_password_hash(new_password)
         await self.user_repository.update(session=session, obj=user)

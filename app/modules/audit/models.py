@@ -42,7 +42,7 @@ class BizAuditLog(BaseLogModel):
     operation_type = Column(String(20), comment="操作类型(CREATE/UPDATE/DELETE/QUERY)")
     business_id = Column(String(36), comment="业务ID")
     operation_content = Column(Text, comment="操作内容")
-    operation_result = Column(String(10), default="SUCCESS", comment="操作结果(SUCCESS/FAILURE)")
+    operation_result = Column(String(10), comment="操作结果(SUCCESS/FAILURE)")
     error_msg = Column(Text, nullable=True, comment="错误信息")
 
     def __repr__(self):
