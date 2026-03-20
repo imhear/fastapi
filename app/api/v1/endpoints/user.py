@@ -103,6 +103,26 @@ async def update_user(
     """
     更新用户信息
     """
+    # 提取实际更新的字段（排除未设置的字段）
+    update_data = user_update.model_dump(exclude_unset=True)
+    # 排除版本号和角色ID，它们不是用户模型字段
+    changed_fields = [k for k in update_data.keys() if k not in ['version', 'role_ids']]
+
+    # 构建操作内容
+    operation_content = {
+        "operation": "update_user",
+        "changed_fields": changed_fields,
+        "description": f"更新用户信息：{', '.join(changed_fields)}" if changed_fields else "无更新"
+    }
+
+    # 设置审计上下文
+    request.state.audit_context = AuditContext(
+        module="user",
+        operation_type="UPDATE",
+        business_id=str(id),
+        operation_content=operation_content
+    )
+
     try:
         print(f"🎯 API端点: 开始更新用户 {id}")
         print(f"📨 请求数据: {user_update.model_dump(exclude_unset=True)}")
@@ -115,8 +135,10 @@ async def update_user(
             current_user_id=current_user.id  # 传递用户ID
         )
         return ApiResponse.success(data=updated, msg="用户信息更新成功")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"用户信息更新失败: {str(e)}")
+    except (ResourceNotFound, BadRequest, DataOutdated, Exception) as e:
+        request.state.audit_context.operation_result = "FAILURE"
+        request.state.audit_context.error_msg = str(e)
+        raise #HTTPException(status_code=500, detail=f"用户信息更新失败: {str(e)}")
 
 
 @router.post(

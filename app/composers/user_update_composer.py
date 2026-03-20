@@ -12,10 +12,10 @@ class UserUpdateComposer:
     def __init__(
         self,
         user_service: AbstractUserService,
-        role_service: AbstractRoleService,
+        # role_service: AbstractRoleService,
     ):
         self.user_service = user_service
-        self.role_service = role_service
+        # self.role_service = role_service
 
     async def update_user_with_roles(
         self,
@@ -35,20 +35,20 @@ class UserUpdateComposer:
         )
 
         # 2. 分配角色（如果提供了 role_ids）
-        if user_update.role_ids is not None:
-            await self.role_service.assign_roles_to_user(
-                session=session,
-                user_id=user_id,
-                role_ids=user_update.role_ids,
-            )
-            # 3. 获取最新的角色列表（关键：传入uow.session，复用事务内会话）
-            roles = await self.role_service.get_roles_by_user_id(
-                session=session,
-                user_id=user_id,
-            )
+        # if user_update.role_ids is not None:
+        #     await self.role_service.assign_roles_to_user(
+        #         session=session,
+        #         user_id=user_id,
+        #         role_ids=user_update.role_ids,
+        #     )
+        #     # 3. 获取最新的角色列表（关键：传入uow.session，复用事务内会话）
+        #     roles = await self.role_service.get_roles_by_user_id(
+        #         session=session,
+        #         user_id=user_id,
+        #     )
 
         # 退出上下文时自动提交
         return {
             "user": updated_user,
-            "roles": roles
+            # "roles": roles
         }

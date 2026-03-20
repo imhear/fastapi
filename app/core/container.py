@@ -41,8 +41,6 @@ class Container(containers.DeclarativeContainer):
     # Service
     # 日志服务（单例），确保处理器只启动一次
     log_service = providers.Singleton(LogService)
-    # 审计服务（单例）
-    # audit_service = providers.Singleton(AuditService)
 
     # Redis 客户端资源
     # redis_client = providers.Resource(get_redis_client)
@@ -98,8 +96,8 @@ class Container(containers.DeclarativeContainer):
 
 # 创建容器实例并初始化
 container = Container()
+# wire 列表：应只包含那些真正使用 @inject 或 Depends(Provide) 的模块，避免无意义的 wire。
 container.wire(modules=[
     "app.api.v1.endpoints.user",
-    "app.api.v1.endpoints.auth",
-    "app.core.middleware.log_middleware"],
+    "app.api.v1.endpoints.auth",],
 )

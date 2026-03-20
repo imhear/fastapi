@@ -35,9 +35,8 @@ def create_app() -> FastAPI:
     # 3. 业务审计日志中间件（新增）
     app.add_middleware(BizAuditLogMiddleware)
 
-    # 4. 注册全局异常处理器中间件
+    # 4. 注册全局异常处理器
     app.add_exception_handler(Exception, global_exception_handler)
-    # app.add_exception_handler(HTTPException, global_exception_handler)
 
     # 注册路由
     app.include_router(user.router, prefix="/api/v1")

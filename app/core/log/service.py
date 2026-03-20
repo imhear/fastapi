@@ -9,6 +9,7 @@ import uuid
 from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dataclasses import AuditContext
 from app.core.log.context import LogContext
 
 # from app.modules.audit.models import SysAccessLog, SysErrorLog
@@ -38,12 +39,14 @@ class LogService:
 
             # 关键修复：更健壮的 operator_id 提取逻辑
             operator_id = None
+            operator_name = None
             user_context = log_dict.get("user_context")
             if user_context and isinstance(user_context, dict):
                 operator_id = user_context.get("id")
-            # 兼容旧格式
-            elif user_context and hasattr(user_context, "id"):
-                operator_id = user_context.id
+                operator_name = user_context.get("username")
+            # # 兼容旧格式
+            # elif user_context and hasattr(user_context, "id"):
+            #     operator_id = user_context.id
 
 
             # 关键修复：None 安全检查
@@ -64,7 +67,7 @@ class LogService:
                 ip=log_dict.get("ip", ""),
                 user_agent=log_dict.get("user_agent", ""),
                 operator_id=operator_id,  # 使用提取的 operator_id
-                # operator_id=log_dict.get("user_context", {}).get("id") if log_dict.get("user_context") else None,
+                operator_name=operator_name,
                 handler=log_dict.get("handler", "")
             )
             session.add(log)
@@ -91,11 +94,13 @@ class LogService:
 
             # 关键修复：更健壮的 operator_id 提取逻辑
             operator_id = None
+            operator_name = None
             user_context = log_dict.get("user_context")
             if user_context and isinstance(user_context, dict):
                 operator_id = user_context.get("id")
-            elif user_context and hasattr(user_context, "id"):
-                operator_id = user_context.id
+                operator_name = user_context.get("username")
+            # elif user_context and hasattr(user_context, "id"):
+            #     operator_id = user_context.id
 
 
             # 关键修复：None 安全检查
@@ -113,7 +118,7 @@ class LogService:
                 ip=log_dict.get("ip", ""),
                 user_agent=log_dict.get("user_agent", ""),
                 operator_id=operator_id,  # 使用提取的 operator_id
-                # operator_id=log_dict.get("user_context", {}).get("id") if log_dict.get("user_context") else None,
+                operator_name=operator_name,
                 handler=log_dict.get("handler", ""),
                 error_code=error_code,
                 error_msg=error_msg,
@@ -133,33 +138,52 @@ class LogService:
     async def record_audit_log(
         self,
         db: AsyncSession,
-        operator_id: int,
-        operator_name: str,
+        # operator_id: int,
+        # operator_name: str,
         log_context: LogContext,  # 复用上下文
-        module: str,
-        operation_type: str,
-        business_id: str,
-        operation_content: str,
-        operation_result: str = "SUCCESS",
-        error_msg: Optional[str] = None,
+        audit_context: AuditContext,
+        # module: str,
+        # operation_type: str,
+        # business_id: str,
+        # operation_content: str,
+        # operation_result: str = "SUCCESS",
+        # error_msg: Optional[str] = None,
     ) -> None:
         """记录业务审计日志（独立会话，手动提交）"""
         # 运行时导入
         from app.modules import BizAuditLog
 
         try:
+            """错误日志复用同一上下文"""
+            """接收LogContext，统一转换为数据库模型"""
+            # 安全解析上下文
+            log_dict = self._safe_serialize(log_context)
+            ip = log_dict.get("ip", "")
+            request_id = log_dict.get("request_id", "")
+            user_agent = log_dict.get("user_agent", "")
+            # 将 operation_content 字典转换为 JSON 字符串
+            operation_content_str = json.dumps(audit_context.operation_content, ensure_ascii=False)
+
+            # 关键修复：更健壮的 operator_id 提取逻辑
+            operator_id = None
+            operator_name = None
+            user_context = log_dict.get("user_context")
+            if user_context and isinstance(user_context, dict):
+                operator_id = user_context.get("id")
+                operator_name = user_context.get("username")
+
             log = BizAuditLog(
                 operator_id=operator_id,
                 operator_name=operator_name,
-                module=module,
-                operation_type=operation_type,
-                business_id=business_id,
-                operation_content=operation_content,
-                operation_result=operation_result,
-                error_msg=error_msg,
-                # 新增：空值保护
-                ip_address=log_context.ip if log_context else "",
-                request_id=log_context.request_id if log_context else ""
+                module=audit_context.module,
+                operation_type=audit_context.operation_type,
+                business_id=audit_context.business_id,
+                operation_content=operation_content_str,
+                operation_result=audit_context.operation_result,
+                error_msg=audit_context.error_msg,
+                ip=ip,
+                request_id=request_id,
+                user_agent=user_agent,
             )
             db.add(log)
             # 移除：不再依赖业务事务提交，由中间件手动commit
