@@ -190,11 +190,7 @@ async def reset_user_password(
         request.state.audit_context.operation_result = "SUCCESS"
         # return ApiResponse.success(data={"message": result}, msg="密码重置成功")
 
-    except (ResourceNotFound, BadRequest, DataOutdated) as e:
-        request.state.audit_context.operation_result = "FAILURE"
-        request.state.audit_context.error_msg = str(e)
-        raise  # 直接抛出原异常（仍为 HTTPException 子类）
-    except Exception as e:
+    except (ResourceNotFound, BadRequest, DataOutdated, Exception) as e:
         request.state.audit_context.operation_result = "FAILURE"
         request.state.audit_context.error_msg = str(e)
         raise  # 直接抛出原异常
@@ -205,12 +201,6 @@ async def reset_user_password(
     except Exception as e:
         # 记录系统错误日志（由全局异常处理器处理）
         raise
-    # except (ResourceNotFound, BadRequest, Exception) as e:
-    #     # 失败时仅更新审计上下文状态
-    #     request.state.audit_context.operation_result = "FAILURE"
-    #     request.state.audit_context.error_msg = str(e)
-    #     status_code = 404 if isinstance(e, ResourceNotFound) else 400 if isinstance(e, BadRequest) else 500
-    #     raise HTTPException(status_code=status_code, detail=str(e))
 
 # ========== 待处理代码（过期代码） ==========
 """
