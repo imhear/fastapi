@@ -52,7 +52,6 @@ class UserService(AbstractUserService):  # 实现抽象接口
         return UserResponse.model_validate(user)
 
     async def update_user(self, session: AsyncSession, user_id: int, user_update: UserUpdate, current_version: int, current_user_id: str) -> UserResponse:
-        print(f"🎯 service.update_user: 开始，操作人ID: {current_user_id}")
         user = await self.get_user_by_id(session=session, user_id=user_id)
         if not user:
             raise ResourceNotFound("User not found")
@@ -64,7 +63,6 @@ class UserService(AbstractUserService):  # 实现抽象接口
         # 乐观锁检查
         if current_version is None:
             raise BadRequest("缺少乐观锁版本号")
-        # TODO 方便测试，需要解除注释
         if user.version != current_version:
             raise BadRequest("数据已被其他用户修改，请刷新后重试")
 
@@ -92,7 +90,6 @@ class UserService(AbstractUserService):  # 实现抽象接口
     async def update_password(self, session: AsyncSession, user_id: int, new_password: str) -> Any:
         """
         重置用户密码
-
         Args:
             user_id: 用户ID
             new_password: 新密码
@@ -106,14 +103,6 @@ class UserService(AbstractUserService):  # 实现抽象接口
         user = await self.get_user_by_id(session=session, user_id=user_id)
         if not user:
             raise ResourceNotFound(msg=f"用户 '{user_id}' 不存在")
-
-        # # 2. 故意修改数据库中的 version（绕过 ORM）
-        # from sqlalchemy import update
-        # async with AsyncSessionFactory() as session2:
-        #     user2 = await self.user_repository.get_by_id(session2, user_id)
-        #     user2.password = get_password_hash(new_password)
-        #     await self.user_repository.update(session=session2, obj=user2)
-        #     await session2.commit()
 
         user.password = get_password_hash(new_password)
         await self.user_repository.update(session=session, obj=user)

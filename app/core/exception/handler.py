@@ -39,7 +39,8 @@ async def global_exception_handler(request: Request, exc: Exception):
             request_uri=str(request.url.path),
             request_method=request.method,
             ip=request.client.host if request.client else "",
-            user_agent=request.headers.get("user-agent", "")
+            user_agent=request.headers.get("user-agent", ""),
+            content_type=request.headers.get("content-type", "")
         )
 
     # 3. 强制更新用户上下文（关键修复）
@@ -54,11 +55,14 @@ async def global_exception_handler(request: Request, exc: Exception):
             if body is None:
                 body = await request.body()
 
-            # 关键修复：直接调用静态方法，而非通过实例
-            # body_str = LogContext._desensitize_body(body)
-            # 关键修改：传递content-type参数
-            content_type = request.headers.get("content-type", "")
-            body_str = LogContext._desensitize_body(request._body, content_type)
+            # 仅转换为字符串，不提前脱敏
+            body_str = body.decode("utf-8", errors="ignore")
+
+            # # 关键修复：直接调用静态方法，而非通过实例
+            # # body_str = LogContext._desensitize_body(body)
+            # # 关键修改：传递content-type参数
+            # content_type = request.headers.get("content-type", "")
+            # body_str = LogContext._desensitize_body(request._body, content_type)
 
             if log_context.request_params:
                 log_context.request_params.body = body_str

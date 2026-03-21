@@ -100,7 +100,7 @@ from app.core.audit.decorator import audit_log
             k for k in kwargs['user_update'].model_dump(exclude_unset=True).keys()
             if k not in ['version', 'role_ids']
         ],
-        "description": f"更新用户信息：{', '.join([k for k in kwargs['user_update'].model_dump(exclude_unset=True).keys() if k not in ['version', 'role_ids']])}" if any(k not in ['version', 'role_ids'] for k in kwargs['user_update'].model_dump(exclude_unset=True)) else "无更新"
+        "version": str(getattr(kwargs['user_update'], 'version', ''))
     }
 )
 async def update_user(
@@ -123,51 +123,6 @@ async def update_user(
         current_user_id=current_user.id
     )
     return ApiResponse.success(data=updated, msg="用户信息更新成功")
-    # # 提取实际更新的字段（排除未设置的字段）
-    # update_data = user_update.model_dump(exclude_unset=True)
-    # # 排除版本号和角色ID，它们不是用户模型字段
-    # changed_fields = [k for k in update_data.keys() if k not in ['version', 'role_ids']]
-    #
-    # # 构建操作内容
-    # operation_content = {
-    #     "operation": "update_user",
-    #     "changed_fields": changed_fields,
-    #     "description": f"更新用户信息：{', '.join(changed_fields)}" if changed_fields else "无更新"
-    # }
-    #
-    # # 设置审计上下文
-    # request.state.audit_context = AuditContext(
-    #     module="user",
-    #     operation_type="UPDATE",
-    #     business_id=str(id),
-    #     operation_content=operation_content
-    # )
-
-    # try:
-    #     print(f"🎯 API端点: 开始更新用户 {id}")
-    #     print(f"📨 请求数据: {user_update.model_dump(exclude_unset=True)}")
-    #     """原子更新用户信息及角色（使用组合器）"""
-    #     updated = await composer.update_user_with_roles(
-    #         session=db,
-    #         user_id=id,
-    #         user_update=user_update,
-    #         current_version=user_update.version,
-    #         current_user_id=current_user.id  # 传递用户ID
-    #     )
-    #     # 业务成功，立即设置审计结果
-    #     request.state.audit_context.operation_result = "SUCCESS"
-    #     # return ApiResponse.success(data=updated, msg="用户信息更新成功")
-    # except (ResourceNotFound, BadRequest, DataOutdated, Exception) as e:
-    #     request.state.audit_context.operation_result = "FAILURE"
-    #     request.state.audit_context.error_msg = str(e)
-    #     raise
-    #
-    # # 保留分离写法，为了确保审计日志不受响应序列化影响
-    # try:
-    #     return ApiResponse.success(data=updated, msg="用户信息更新成功")
-    # except Exception as e:
-    #     # 记录系统错误日志（由全局异常处理器处理）
-    #     raise
 
 
 @router.post(
@@ -213,32 +168,6 @@ async def reset_user_password(
         return ApiResponse.success(data={"message": result}, msg="密码重置成功")
     # 如果result是用户对象或其他数据，直接返回
     return ApiResponse.success(data={"user_id": id, "result": result}, msg="密码重置成功")
-    # # 初始化审计上下文（仅这一行透传代码）
-    # request.state.audit_context = AuditContext(
-    #     module="user",
-    #     operation_type="UPDATE",
-    #     business_id=str(id),
-    #     operation_content={"user_id": id, "operation": "reset_password"}
-    # )
-    #
-    # try:
-    #     # 核心业务逻辑（重置密码）
-    #     result = await user_service.update_password(db, id, req.new_password)
-    #     # 业务成功，立即设置审计结果
-    #     request.state.audit_context.operation_result = "SUCCESS"
-    #     # return ApiResponse.success(data={"message": result}, msg="密码重置成功")
-    #
-    # except (ResourceNotFound, BadRequest, DataOutdated, Exception) as e:
-    #     request.state.audit_context.operation_result = "FAILURE"
-    #     request.state.audit_context.error_msg = str(e)
-    #     raise  # 直接抛出原异常
-    #
-    # # 单独处理响应（此处的异常不会影响审计结果）
-    # try:
-    #     return ApiResponse.success(data=result, msg="更新成功")
-    # except Exception as e:
-    #     # 记录系统错误日志（由全局异常处理器处理）
-    #     raise
 
 # ========== 待处理代码（过期代码） ==========
 """

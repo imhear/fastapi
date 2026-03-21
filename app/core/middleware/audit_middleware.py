@@ -53,16 +53,8 @@ class BizAuditLogMiddleware(BaseHTTPMiddleware):
             # 调用审计服务记录日志（复用原有AuditService，仅修改会话来源）
             await log_service.record_audit_log(
                 db=log_session,  # 使用日志独立会话
-                # operator_id=user_context.id,
-                # operator_name=user_context.username,
                 log_context=log_context,
                 audit_context=audit_context
-                # module=audit_context.module,
-                # operation_type=audit_context.operation_type,
-                # business_id=audit_context.business_id,
-                # operation_content=str(audit_context.operation_content),  # 序列化
-                # operation_result=audit_context.operation_result,
-                # error_msg=audit_context.error_msg
             )
             await log_session.commit()
 

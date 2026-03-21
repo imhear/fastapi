@@ -1,4 +1,7 @@
-# app/core/audit/decorator.py
+"""
+审计日志装饰器
+app/core/audit/decorator.py
+"""
 import logging
 from functools import wraps
 from typing import Callable, Any, Dict, Optional

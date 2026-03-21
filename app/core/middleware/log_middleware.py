@@ -42,7 +42,7 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
             # 1. 获取预生成的LogContext
             log_context = getattr(request.state, "log_context", None)
             if not log_context:
-                return  # 无上下文时直接返回，避免后续报错
+                return response if response else None  # 无上下文时直接返回，避免后续报错
 
             # 2. 强制更新用户上下文（确保获取最新值）
             user_context = getattr(request.state, "user_context", None)
@@ -52,6 +52,7 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
             # 3. 补充日志信息
             log_context.execution_time = int((time.perf_counter() - start_time) * 1000)
             log_context.handler = self._get_handler_name(request)
+            log_context.content_type = request.headers.get("content-type", "")  # 补充content_type
 
             # 安全获取状态码
             if response is not None and hasattr(response, 'status_code'):
@@ -61,26 +62,25 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
 
             # 4. 统一采集所有请求参数（解决原request_body为空的问题）
             # 读取预存储的body并脱敏
-            body = None
+            body_bytes = None
             if hasattr(request, "_body") and request._body:
-                # body = LogContext._desensitize_body(request._body)
-                # 关键修改：传递content-type参数
-                content_type = request.headers.get("content-type", "")
-                body = LogContext._desensitize_body(request._body, content_type)
+                body_bytes = request._body
+            else:
+                body_bytes = await request.body()
 
             # 安全创建 RequestParams
             try:
                 log_context.request_params = RequestParams(
                     path_params=dict(request.path_params),
                     query_params=dict(request.query_params),
-                    body=body  # 使用脱敏后的body
+                    body=body_bytes  # 使用脱敏后的body
                 )
             except Exception as e:
                 logger.warning(f"创建RequestParams失败: {e}")
                 log_context.request_params = RequestParams(
                     path_params={},
                     query_params={},
-                    body=body
+                    body=body_bytes
                 )
 
             # 5.异步记录日志（独立try块，不影响主流程）
@@ -88,7 +88,6 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
             try:
                 log_session = await create_log_session()  # 显式创建日志会话
                 log_service = Container.log_service()
-                # 日志服务层接收LogContext
                 await log_service.record_access_log(log_session, log_context)
                 await log_session.commit()  # 3. 手动提交事务
             except Exception as e:
