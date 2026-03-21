@@ -12,7 +12,7 @@ from app.domain.user.repositories import AbstractUserRepository
 from app.modules.user.models import User
 from app.modules.user.schemas import UserCreate, UserUpdate, UserResponse, UserProfileResponse
 # from app.services.redis_service import RedisService
-from app.core.responses import ResourceNotFound, BadRequest
+from app.core.responses import ResourceNotFound, BadRequest, DataOutdated
 from app.domain.user.interfaces import AbstractUserService
 
 
@@ -64,7 +64,7 @@ class UserService(AbstractUserService):  # 实现抽象接口
         if current_version is None:
             raise BadRequest("缺少乐观锁版本号")
         if user.version != current_version:
-            raise BadRequest("数据已被其他用户修改，请刷新后重试")
+            raise DataOutdated(msg="数据已被其他用户修改，请刷新后重试")
 
         # 提取更新数据，排除版本号和关联字段
         update_data = user_update.model_dump(exclude_unset=True, exclude={'version', 'role_ids'})

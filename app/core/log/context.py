@@ -14,7 +14,7 @@ class RequestParams:
     """请求参数封装（解决参数采集不完整问题）"""
     path_params: Dict[str, Any]  # 路径参数：/reset-password/{id}
     query_params: Dict[str, Any] # 查询参数：?new_password=123
-    body: Optional[str] = None   # 请求体（脱敏后）
+    body: Optional[bytes] = None   # 请求体（原始bytes）
 
 
 @dataclass
