@@ -16,18 +16,18 @@ class BaseLogModel(Base):
     operator_name = Column(String(50), comment="操作人名称")
     ip = Column(String(50), nullable=True, comment="客户端IP")
     user_agent = Column(Text, nullable=True, comment="客户端UA")
+    request_uri = Column(String(255), comment="请求URI")
+    request_method = Column(String(10), comment="请求方法(GET/POST/PUT/DELETE)")
+    handler = Column(String(64), nullable=True, comment="处理器函数名")
     create_time = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment='创建时间')
 
 class SysAccessLog(BaseLogModel):
     """系统访问日志（技术视角）"""
     __tablename__ = "sys_access_log"
 
-    request_uri = Column(String(255), comment="请求URI")
-    request_method = Column(String(10), comment="请求方法(GET/POST/PUT/DELETE)")
     request_params = Column(Text, nullable=True, comment="请求参数(query)")
     http_status = Column(Integer, comment="响应状态码")
     execution_time = Column(Integer, comment="请求耗时(毫秒)")
-    handler = Column(String(100), nullable=True, comment="处理器函数名")
     request_body = Column(Text, nullable=True, comment="请求体（脱敏）")
 
     def __repr__(self):
@@ -56,11 +56,8 @@ class SysErrorLog(BaseLogModel):
     error_code = Column(String(20), comment="错误码")
     error_msg = Column(Text, comment="错误信息")
     error_stack = Column(Text, comment="异常栈信息")
-    request_uri = Column(String(255), nullable=True, comment="请求URI")
-    request_method = Column(String(10), nullable=True, comment="请求方法")
     request_params = Column(Text, nullable=True, comment="请求参数（JSON）")
     request_body = Column(Text, nullable=True, comment="请求体（脱敏）")
-    handler = Column(String(100), nullable=True, comment="处理器函数名")
 
     def set_error_stack(self, stack: str):
         """异常栈脱敏（简单版）"""

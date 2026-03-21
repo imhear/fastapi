@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dataclasses import AuditContext
 from app.core.log.context import LogContext
 
-# from app.modules.audit.models import SysAccessLog, SysErrorLog
+from app.modules.audit.models import SysAccessLog, SysErrorLog, BizAuditLog
 
 # 配置日志
 # logging.basicConfig(level=logging.ERROR)
@@ -30,7 +30,7 @@ class LogService:
     async def record_access_log(self, session: AsyncSession, log_context: LogContext) -> None:
         """异步记录系统访问日志"""
         # 运行时导入，避免循环依赖
-        from app.modules.audit.models import SysAccessLog
+        # from app.modules.audit.models import SysAccessLog
 
         try:
             """接收LogContext，统一转换为数据库模型"""
@@ -86,7 +86,7 @@ class LogService:
     ) -> None:
         """异步记录错误日志"""
         # 运行时导入
-        from app.modules.audit.models import SysErrorLog
+        # from app.modules.audit.models import SysErrorLog
 
         try:
             """错误日志复用同一上下文"""
@@ -151,7 +151,7 @@ class LogService:
     ) -> None:
         """记录业务审计日志（独立会话，手动提交）"""
         # 运行时导入
-        from app.modules import BizAuditLog
+        # from app.modules import BizAuditLog
 
         try:
             """错误日志复用同一上下文"""
@@ -184,6 +184,9 @@ class LogService:
                 ip=ip,
                 request_id=request_id,
                 user_agent=user_agent,
+                request_uri=log_dict.get("request_uri", ""),
+                request_method=log_dict.get("request_method", ""),
+                handler=log_dict.get("handler", "")
             )
             db.add(log)
             # 移除：不再依赖业务事务提交，由中间件手动commit
