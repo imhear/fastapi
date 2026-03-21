@@ -52,7 +52,7 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
             # 3. 补充日志信息
             log_context.execution_time = int((time.perf_counter() - start_time) * 1000)
             log_context.handler = self._get_handler_name(request)
-            log_context.content_type = request.headers.get("content-type", "")  # 补充content_type
+            # log_context.content_type = request.headers.get("content-type", "")  # 补充content_type
 
             # 安全获取状态码
             if response is not None and hasattr(response, 'status_code'):

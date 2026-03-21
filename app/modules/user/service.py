@@ -2,11 +2,10 @@
 用户模块服务层
 app/modules/user/service.py
 """
-from typing import Dict, Any, Optional
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import AsyncSessionFactory
 from app.core.security import get_password_hash
 from app.domain.user.repositories import AbstractUserRepository
 from app.modules.user.models import User

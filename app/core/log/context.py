@@ -14,7 +14,7 @@ class RequestParams:
     """请求参数封装（解决参数采集不完整问题）"""
     path_params: Dict[str, Any]  # 路径参数：/reset-password/{id}
     query_params: Dict[str, Any] # 查询参数：?new_password=123
-    body: Optional[bytes] = None   # 请求体（原始bytes）
+    body: Optional[bytes] = None # 请求体（原始bytes）
 
 
 @dataclass
@@ -74,6 +74,16 @@ class LogContext:
         """转为字典，供日志服务层使用"""
         return asdict(self)
 
+    def __repr__(self):
+        """安全的字符串表示，仅显示非敏感字段"""
+        return (
+            f"<LogContext request_id={self.request_id} "
+            f"uri={self.request_uri} method={self.request_method} "
+            f"status={self.http_status} handler={self.handler}>"
+        )
+
+    def __str__(self):
+        return self.__repr__()
 
 # 关键：确保导出 RequestParams 类
 __all__ = ["LogContext", "RequestParams", "generate_request_id"]

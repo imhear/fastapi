@@ -29,6 +29,7 @@ class ContextMiddleware(BaseHTTPMiddleware):
             user_agent = request.headers.get("user-agent", "")
         except Exception:
             user_agent = ""
+        content_type = request.headers.get("content-type", "")  # 获取 content_type
 
         # 4. 预生成LogContext（包含用户上下文）
         request.state.log_context = LogContext(
@@ -37,7 +38,8 @@ class ContextMiddleware(BaseHTTPMiddleware):
             request_method=request.method,
             ip=client_host,
             user_agent=user_agent,
-            user_context=user_context  # 关键：传递用户上下文
+            user_context=user_context,
+            content_type=content_type  # 统一设置
         )
 
         # 5. 执行后续中间件/路由（安全处理）
