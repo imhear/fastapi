@@ -24,6 +24,17 @@ def init_log_dir():
     log_dir.mkdir(exist_ok=True)
     return log_dir
 
+# 在 logging.py 顶部添加自定义异常处理器
+def format_exception_with_utf8(_, __, event_dict):
+    """修复异常栈中的中文显示"""
+    if 'exception' in event_dict:
+        # 将异常栈转为UTF-8编码的字符串
+        if isinstance(event_dict['exception'], (list, tuple)):
+            event_dict['exception'] = '\n'.join(
+                line.encode('utf-8').decode('utf-8') if isinstance(line, str) else str(line)
+                for line in event_dict['exception']
+            )
+    return event_dict
 
 # ========== 脱敏处理器（复用原有脱敏逻辑） ==========
 def desensitize_processor(_, __, event_dict):
@@ -58,6 +69,7 @@ def configure_structlog():
         structlog.processors.TimeStamper(fmt="iso"),  # ISO格式时间戳
         structlog.processors.StackInfoRenderer(),  # 堆栈信息
         structlog.processors.format_exc_info,  # 异常栈信息
+        format_exception_with_utf8,  # 新增：修复异常栈中文
     ]
 
     # 2. 配置标准logging（用于uvicorn/第三方库日志）
@@ -88,7 +100,8 @@ def configure_structlog():
 
         # 3.4 structlog最终处理器（JSON）
         final_processors = base_processors + [
-            structlog.processors.JSONRenderer()  # JSON格式输出
+            # 关键修改：ensure_ascii=False 保留中文
+            structlog.processors.JSONRenderer(ensure_ascii=False)
         ]
     else:
         # 开发环境：彩色控制台输出
