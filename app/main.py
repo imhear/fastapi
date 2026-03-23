@@ -1,12 +1,16 @@
 """
 项目主入口文件
 app/main.py
-上次更新：2026/3/12
+上次更新：2026/3/23
 """
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.docs import get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html
 from pathlib import Path
+
+# ========== 新增：初始化结构化日志 ==========
+from app.core.logging import configure_structlog
+configure_structlog()
 
 from app.config.config import settings
 
@@ -42,7 +46,7 @@ def create_app() -> FastAPI:
     app.include_router(user.router, prefix="/api/v1")
     app.include_router(auth.router, prefix="/api/v1")
 
-    # ==================== 新增：挂载 Swagger UI 静态文件 ====================
+    # 挂载 Swagger UI 静态文件
     static_dir = Path(__file__).parent / "api" / "static" / "swagger-ui"
     if not static_dir.exists():
         raise RuntimeError(f"Swagger UI 静态文件目录不存在: {static_dir}，请手动创建并放置资源文件")
@@ -52,7 +56,7 @@ def create_app() -> FastAPI:
         name="swagger_static"
     )
 
-    # ==================== 新增：自定义 Swagger UI 路由 ====================
+    # 自定义 Swagger UI 路由
     @app.get("/docs", include_in_schema=False)
     async def custom_swagger_ui_html():
         return get_swagger_ui_html(
@@ -75,7 +79,7 @@ def create_app() -> FastAPI:
 
 app = create_app()
 
-
+# 以下测试代码保留不变
 from pydantic import BaseModel
 class Item(BaseModel):
     name: str

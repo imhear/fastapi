@@ -15,8 +15,10 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.container import Container
 from app.config.config import settings
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+# 使用结构化日志器（替换原有logging）
+logger = get_logger("access_log")
 
 class AccessLogMiddleware(BaseHTTPMiddleware):
     """系统访问日志中间件（显式管理session）"""
@@ -36,7 +38,13 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
             return response
         except Exception as e:
             # 捕获所有异常，确保finally块能正确处理
-            logger.error(f"请求处理异常: {e}", exc_info=True)
+            logger.error(
+                "request_process_error",
+                method=request.method,
+                path=request.url.path,
+                error=str(e),
+                exc_info=True
+            )
             raise  # 重新抛出异常，让异常处理器处理
         finally:
             # 1. 获取预生成的LogContext
@@ -52,8 +60,6 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
             # 3. 补充日志信息
             log_context.execution_time = int((time.perf_counter() - start_time) * 1000)
             log_context.handler = self._get_handler_name(request)
-            # log_context.content_type = request.headers.get("content-type", "")  # 补充content_type
-
             # 安全获取状态码
             if response is not None and hasattr(response, 'status_code'):
                 log_context.http_status = response.status_code
@@ -61,29 +67,49 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
                 log_context.http_status = status_code
 
             # 4. 统一采集所有请求参数（解决原request_body为空的问题）
-            # 读取预存储的body并脱敏
-            body_bytes = None
-            if hasattr(request, "_body") and request._body:
-                body_bytes = request._body
-            else:
-                body_bytes = await request.body()
-
-            # 安全创建 RequestParams
+            body_bytes = getattr(request, "_body", b"") or await request.body()
             try:
                 log_context.request_params = RequestParams(
                     path_params=dict(request.path_params),
                     query_params=dict(request.query_params),
-                    body=body_bytes  # 使用脱敏后的body
-                )
-            except Exception as e:
-                logger.warning(f"创建RequestParams失败: {e}")
-                log_context.request_params = RequestParams(
-                    path_params={},
-                    query_params={},
                     body=body_bytes
                 )
+            except Exception as e:
+                logger.warning("request_params_extract_error", error=str(e))
+                log_context.request_params = RequestParams(path_params={}, query_params={}, body=body_bytes)
 
-            # 5.异步记录日志（独立try块，不影响主流程）
+            # 5. 结构化日志输出（核心新增）
+            logger.info(
+                "access_log",
+                request_uri=log_context.request_uri,
+                request_method=log_context.request_method,
+                http_status=log_context.http_status,
+                execution_time_ms=log_context.execution_time,
+                ip=log_context.ip,
+                user_agent=log_context.user_agent,
+                handler=log_context.handler,
+                request_params={
+                    "path_params": log_context.request_params.path_params,
+                    "query_params": log_context.request_params.query_params,
+                    "body_length": len(log_context.request_params.body or b"")
+                }
+            )
+            # # 安全创建 RequestParams
+            # try:
+            #     log_context.request_params = RequestParams(
+            #         path_params=dict(request.path_params),
+            #         query_params=dict(request.query_params),
+            #         body=body_bytes  # 使用脱敏后的body
+            #     )
+            # except Exception as e:
+            #     logger.warning(f"创建RequestParams失败: {e}")
+            #     log_context.request_params = RequestParams(
+            #         path_params={},
+            #         query_params={},
+            #         body=body_bytes
+            #     )
+
+            # 6.异步记录日志（独立try块，不影响主流程）
             log_session: AsyncSession = None
             try:
                 log_session = await create_log_session()  # 显式创建日志会话
@@ -94,7 +120,7 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
                 # 异常时回滚
                 if log_session and log_session.is_active:
                     await log_session.rollback()
-                logger.error(f"记录访问日志失败: {e}", exc_info=True)
+                logger.error("access_log_db_write_error", error=str(e), exc_info=True)
             finally:
                 # 最终确保关闭session
                 if log_session:

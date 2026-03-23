@@ -804,3 +804,16 @@ Requires:
 Required-by: fastapi
 (fastapi) wutaodeMacBook-Pro:fastapi wutao$ 
 ```
+
+安装structlog python-json-logger python-multipart，实现 结构化日志输出
+```shell
+(fastapi) wutaodeMacBook-Pro:fastapi wutao$ uv add structlog python-json-logger python-multipart
+Resolved 268 packages in 1m 09s
+      Built fastapi @ file:///Users/wutao/code/fastapi
+Prepared 2 packages in 1.07s
+Uninstalled 1 package in 4ms
+Installed 2 packages in 7ms
+ ~ fastapi==0.135.1 (from file:///Users/wutao/code/fastapi)
+ + structlog==25.5.0
+(fastapi) wutaodeMacBook-Pro:fastapi wutao$ 
+```

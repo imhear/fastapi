@@ -8,9 +8,10 @@ from typing import Callable, Any, Dict, Optional
 
 from fastapi import Request
 from app.core.dataclasses import AuditContext
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
-
+# 使用结构化日志器
+logger = get_logger("audit_decorator")
 
 def audit_log(
     module: str,
@@ -37,20 +38,20 @@ def audit_log(
                         request = arg
                         break
             if not request:
-                logger.error("audit_log 装饰器找不到 request 对象")
+                logger.error("audit_log_request_not_found")
                 return await func(*args, **kwargs)
 
             # 2. 提取业务信息
             try:
                 business_id = get_business_id(**kwargs)
             except Exception as e:
-                logger.error(f"提取业务ID失败: {e}", exc_info=True)
+                logger.error("business_id_extract_error", error=str(e), exc_info=True)
                 business_id = "unknown"
 
             try:
                 operation_content = get_operation_content(**kwargs)
             except Exception as e:
-                logger.error(f"生成操作内容失败: {e}", exc_info=True)
+                logger.error("operation_content_extract_error", error=str(e), exc_info=True)
                 operation_content = {"error": "无法生成操作内容"}
 
             # 3. 初始化审计上下文（结果未知，先设为 None）
@@ -68,11 +69,27 @@ def audit_log(
                 result = await func(*args, **kwargs)
                 # 成功：设置结果
                 request.state.audit_context.operation_result = "SUCCESS"
+                # 提前记录成功日志（结构化）
+                logger.debug(
+                    "audit_log_operation_success",
+                    module=module,
+                    operation_type=operation_type,
+                    business_id=business_id
+                )
                 return result
             except Exception as e:
                 # 失败：设置结果和错误信息
                 request.state.audit_context.operation_result = "FAILURE"
                 request.state.audit_context.error_msg = str(e)
+                # 记录失败日志（结构化）
+                logger.error(
+                    "audit_log_operation_failure",
+                    module=module,
+                    operation_type=operation_type,
+                    business_id=business_id,
+                    error_msg=str(e),
+                    exc_info=True
+                )
                 raise   # 重新抛出，保持原有异常处理
         return wrapper
     return decorator
