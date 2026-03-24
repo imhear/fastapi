@@ -1,5 +1,7 @@
-# app/core/middleware/audit_middleware.py
-import logging
+"""
+业务审计日志中间件
+app/core/middleware/audit_middleware.py
+"""
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import Request, Response
 from app.core.database import create_log_session
@@ -29,15 +31,23 @@ class BizAuditLogMiddleware(BaseHTTPMiddleware):
 
     async def _record_audit_log(self, request: Request):
         """异步记录业务审计日志（独立会话）"""
+        # 1. 获取预生成的LogContext
+        log_context = getattr(request.state, "log_context", None)
+        if not log_context:
+            logger.error(f"审计日志缺少日志上下文 log_context")
+            return # 无上下文时直接返回，避免后续报错
+
         # 1. 检查是否有审计上下文（无则跳过）
+        request_id = log_context.request_id
         audit_context: AuditContext = getattr(request.state, "audit_context", None)
         if not audit_context:
+            logger.error(f"审计日志缺少审计上下文 audit_context")
             return
         if audit_context.operation_result is None:
             logger.error(f"审计上下文缺少 operation_result，request_id: {getattr(request.state, 'request_id', '')}")
 
-        # 2. 获取用户上下文
-        user_context: UserContext = getattr(request.state, "user_context", None)
+        # 2. 获取用户上下文 TODO 有些操作无需登录，是否应该分情况讨论
+        user_context: UserContext = log_context.user_context
         if not user_context:
             logger.warning(f"审计日志缺少用户上下文 - request_id: {getattr(request.state, 'request_id', '')}")
             return
@@ -48,6 +58,7 @@ class BizAuditLogMiddleware(BaseHTTPMiddleware):
         # 3. 结构化日志输出（核心新增）
         logger.info(
             "audit_log",
+            request_id=request_id,  # 强制传入
             module=audit_context.module,
             operation_type=audit_context.operation_type,
             business_id=audit_context.business_id,
@@ -63,7 +74,6 @@ class BizAuditLogMiddleware(BaseHTTPMiddleware):
         try:
             log_session = await create_log_session()
             log_service = Container.log_service()
-            log_context = getattr(request.state, "log_context", None)
 
             # 调用审计服务记录日志（复用原有AuditService，仅修改会话来源）
             await log_service.record_audit_log(

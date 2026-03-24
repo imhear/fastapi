@@ -5,17 +5,10 @@ app/core/logging.py
 import sys
 import logging
 import structlog
-from contextlib import asynccontextmanager
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from contextvars import ContextVar
 
 from app.config.config import settings
-
-# ========== 全局上下文变量 ==========
-request_id_ctx: ContextVar[str] = ContextVar("request_id", default="")
-user_context_ctx: ContextVar[dict] = ContextVar("user_context", default={})
-
 
 # ========== 日志目录初始化 ==========
 def init_log_dir():
@@ -47,23 +40,13 @@ def desensitize_processor(_, __, event_dict):
             event_dict[key] = desensitize_text(value)
     return event_dict
 
-
-# ========== 上下文绑定处理器 ==========
-def bind_contextvars_processor(_, __, event_dict):
-    """自动绑定request_id和user_context到日志"""
-    event_dict["request_id"] = request_id_ctx.get()
-    event_dict["user_context"] = user_context_ctx.get()
-    event_dict["env"] = settings.ENVIRONMENT
-    return event_dict
-
-
 # ========== 核心配置函数 ==========
 def configure_structlog():
     """配置structlog（企业级完整配置）"""
     # 1. 基础处理器（所有环境共享）
     base_processors = [
         structlog.contextvars.merge_contextvars,  # 合并上下文变量
-        bind_contextvars_processor,  # 绑定request_id/user_context
+        # bind_contextvars_processor,  # 绑定request_id/user_context
         desensitize_processor,  # 敏感数据脱敏
         structlog.processors.add_log_level,  # 添加日志级别
         structlog.processors.TimeStamper(fmt="iso"),  # ISO格式时间戳
@@ -131,25 +114,3 @@ def get_logger(name: str = "app") -> structlog.BoundLogger:
     """获取结构化日志器（统一入口）"""
     return structlog.get_logger(name)
 
-
-# ========== 异步日志上下文管理器 ==========
-@asynccontextmanager
-async def log_context(request_id: str = None, user_context: dict = None):
-    """
-    日志上下文管理器（协程安全）
-    使用示例：
-    async with log_context(request_id="xxx", user_context={"id": 1}):
-        logger.info("操作日志")
-    """
-    token1 = token2 = None
-    try:
-        if request_id:
-            token1 = request_id_ctx.set(request_id)
-        if user_context:
-            token2 = user_context_ctx.set(user_context)
-        yield
-    finally:
-        if token1:
-            request_id_ctx.reset(token1)
-        if token2:
-            user_context_ctx.reset(token2)

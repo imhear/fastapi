@@ -817,3 +817,67 @@ Installed 2 packages in 7ms
  + structlog==25.5.0
 (fastapi) wutaodeMacBook-Pro:fastapi wutao$ 
 ```
+
+启动应用
+```shell
+运行
+# 开发环境
+ENVIRONMENT=local uvicorn app.main:app --reload
+
+# 生产环境
+ENVIRONMENT=production uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+标准定位步骤（100% 阿里 / 腾讯 / 字节 通用）
+步骤 1：确定问题发生的 精确时间
+比如你知道问题出在：
+2026-03-23 08:45 左右
+步骤 2：用 grep + 时间戳 过滤日志（最常用）
+```shell
+cd /Users/wutao/code/fastapi/logs
+
+# 筛选 3月23日 的所有日志
+grep "2026-03-23" app.log
+
+# 筛选 3月23日 08:45 分的错误
+grep "2026-03-23T08:45" app.log
+
+# 只看错误日志
+grep "error" app.log
+```
+步骤 3：按 request_id 全链路追踪（最强大）
+你日志里有 request_id，这是大厂标准：
+```shell
+grep "929bd335-1f67-4fae-b102-078fac66b7d8" app.log
+```
+一条命令把一次请求的所有日志全部拉出来。
+步骤 4：按用户 ID / 业务 ID 筛选
+```shell
+grep "business_id": "3" app.log
+grep "operator_id": 3 app.log
+```
+步骤 5：按接口路径筛选
+```shell
+grep "/api/v1/users/update" app.log
+```
+步骤 6：按状态码筛选
+```shell
+grep "409" app.log
+grep "500" app.log
+```
+四、大厂真实工作流（你可以直接学）
+1.先看 时间
+2.再看 request_id
+3.再看 用户 / 业务 ID
+4.再看 接口 / 状态码
+5.最后看 异常栈
+
+完全不需要把日志按天分开！
+五、你现在的设计是否符合大厂经验？
+答案：完全符合，而且非常标准、稳健
+互联网大厂后台服务 70% 都用这种：
+按大小轮转
+保留固定数量
+JSON 结构化
+自带时间戳
+自带 request_id

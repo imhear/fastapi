@@ -2,14 +2,12 @@
 全局异常处理器中间件
 app/core/exception/handler.py
 """
-import json
 import logging
 import traceback
-from typing import Optional
 
 from app.config.config import settings
 from app.core.database import create_log_session
-from fastapi import Request, HTTPException
+from fastapi import Request
 from fastapi.responses import JSONResponse
 from app.core.container import Container
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,7 +31,6 @@ async def global_exception_handler(request: Request, exc: Exception):
     log_context = getattr(request.state, "log_context", None)
     if not log_context:
         # 降级处理：如果上下文未初始化，手动创建
-        # from app.core.log.context import LogContext, generate_request_id
         log_context = LogContext(
             request_id=generate_request_id(),
             request_uri=str(request.url.path),
@@ -57,12 +54,6 @@ async def global_exception_handler(request: Request, exc: Exception):
 
             # 仅转换为字符串，不提前脱敏
             body_str = body.decode("utf-8", errors="ignore")
-
-            # # 关键修复：直接调用静态方法，而非通过实例
-            # # body_str = LogContext._desensitize_body(body)
-            # # 关键修改：传递content-type参数
-            # content_type = request.headers.get("content-type", "")
-            # body_str = LogContext._desensitize_body(request._body, content_type)
 
             if log_context.request_params:
                 log_context.request_params.body = body_str

@@ -67,7 +67,7 @@ async def get_current_user(
     )
     # 保留原ORM实例供路由使用（路由内会话仍有效）
     # 将用户存入 request.state，供后续中间件使用
-    request.state.user = user
+    # request.state.user = user
 
     return user
 

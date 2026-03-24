@@ -2,11 +2,7 @@
 系统访问日志中间件
 app/core/middleware/log_middleware.py
 """
-import logging
 import time
-import json
-import re
-from typing import Optional
 
 from app.core.database import create_log_session
 from app.core.log.context import LogContext, RequestParams
@@ -79,8 +75,14 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
                 log_context.request_params = RequestParams(path_params={}, query_params={}, body=body_bytes)
 
             # 5. 结构化日志输出（核心新增）
+            # print("============AccessLogMiddleware调试代码开始==============")
+            # from structlog.contextvars import get_contextvars
+            # print("Current context vars:", get_contextvars())   # 或使用 logger.debug
+            # logger.debug("debug_context", context_vars=get_contextvars())
+            # print("============AccessLogMiddleware调试代码结束==============")
             logger.info(
                 "access_log",
+                request_id=log_context.request_id,  # 强制传入
                 request_uri=log_context.request_uri,
                 request_method=log_context.request_method,
                 http_status=log_context.http_status,
@@ -94,20 +96,6 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
                     "body_length": len(log_context.request_params.body or b"")
                 }
             )
-            # # 安全创建 RequestParams
-            # try:
-            #     log_context.request_params = RequestParams(
-            #         path_params=dict(request.path_params),
-            #         query_params=dict(request.query_params),
-            #         body=body_bytes  # 使用脱敏后的body
-            #     )
-            # except Exception as e:
-            #     logger.warning(f"创建RequestParams失败: {e}")
-            #     log_context.request_params = RequestParams(
-            #         path_params={},
-            #         query_params={},
-            #         body=body_bytes
-            #     )
 
             # 6.异步记录日志（独立try块，不影响主流程）
             log_session: AsyncSession = None
